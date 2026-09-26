@@ -1,0 +1,326 @@
+// Prisma Schema for SSISM College Asset & Inventory Management System
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  FACULTY
+  STAFF
+  HIGHER_MANAGEMENT
+  SUPER_ADMIN
+}
+
+enum AcquisitionSource {
+  PURCHASED
+  DONATED
+}
+
+enum AssetCategory {
+  LAPTOP
+  ROUTER
+  CCTV
+  SMART_TV
+  INTERACTIVE_WHITEBOARD
+  PERIPHERAL
+  OTHER
+}
+
+enum AssetCondition {
+  BRAND_NEW
+  GOOD
+  SCRATCHES
+  DAMAGED
+}
+
+enum AssetStatus {
+  AVAILABLE
+  ISSUED
+  UNDER_MAINTENANCE
+  RETIRED
+}
+
+enum AllocationStatus {
+  ACTIVE
+  RETURNED
+}
+
+enum MaintenanceType {
+  RAM_UPGRADE
+  SSD_UPGRADE
+  BATTERY_REPLACEMENT
+  SCREEN_REPAIR
+  KEYBOARD_REPAIR
+  GENERAL_SERVICE
+  OS_INSTALLATION
+  OTHER
+}
+
+enum FeeStatus {
+  PAID
+  UNPAID
+  PARTIAL
+  EXEMPTED
+}
+
+/// Dynamic Master Asset Categories for Phase 2 scaling (e.g., Laptop, Router, CCTV, Smart TV)
+model Category {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  code        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// Corporate, NGO, and Alumni Donors contributing laptops and educational assets
+model Donor {
+  id           Int       @id @default(autoincrement())
+  name         String    // Contact person / Representative
+  organization String?   // Corporate / NGO / Alumni entity
+  email        String?
+  phone        String?
+  address      String?
+  donationDate DateTime? @default(now())
+  notes        String?   @db.Text
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  assets       Asset[]
+}
+
+/// College Academic & Administrative Departments (e.g., Computer Science, IT, MBA, Mechanical)
+model Department {
+  id         Int       @id @default(autoincrement())
+  name       String    @unique
+  code       String    @unique
+  isArchived Boolean   @default(false)
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  users  User[]
+  assets Asset[]
+
+  @@index([isArchived])
+}
+
+/// Users of SSISM IMS spanning 5 RBAC tiers: SUPER_ADMIN, STAFF, HIGHER_MANAGEMENT, FACULTY, STUDENT
+model User {
+  id                 Int         @id @default(autoincrement())
+  email              String      @unique
+  passwordHash       String
+  name               String
+  rollNumberOrEmpId  String      @unique
+  role               Role        @default(STUDENT)
+  departmentId       Int?
+  department         Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  batchYear          String?     // e.g. "2023-2027" for students
+  phone              String?
+  fatherName         String?     // Student Father's Name
+  branch             String?     // e.g. "ITEG", "MEG", "B.Tech CSE"
+  track              String?     // e.g. "Full Stack", "Data Science"
+  aadhaarNumber      String?     @unique
+  address            String?     @db.Text
+  designation        String?     // Staff/Faculty current role or designation
+  isArchived         Boolean     @default(false)
+  archivedAt         DateTime?
+  isActive           Boolean     @default(true)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  // Allocations received by this user
+  receivedAllocations Allocation[] @relation("RecipientAllocations")
+
+  // Allocations issued or accepted by this staff/admin
+  issuedAllocations   Allocation[] @relation("IssuerAllocations")
+  returnedAllocations Allocation[] @relation("ReturnReceiverAllocations")
+
+  // Maintenance activities performed/handled
+  maintenanceLogs     MaintenanceLog[]
+
+  // Student license fee records
+  licenseFeeRecords   LicenseFeeRecord[]
+
+  // Audit activities triggered by this user
+  auditLogs           AuditLog[]
+
+  @@index([role])
+  @@index([departmentId])
+  @@index([rollNumberOrEmpId])
+  @@index([isArchived])
+}
+
+
+/// Core Hardware Asset Catalog (Laptops & Phase 2 extensible equipment via native JSON attributes)
+model Asset {
+  id                Int               @id @default(autoincrement())
+  assetTag          String            @unique // e.g., "LP/2025/001" or "CLG-LAP-001"
+  serialNumber      String            @unique // e.g., "SN-DELL-83921"
+  category          AssetCategory     @default(LAPTOP)
+  make              String            // e.g., "Dell", "Lenovo", "HP", "Apple"
+  model             String            // e.g., "Latitude 3420", "ThinkPad E14"
+  
+  // Hardware specifications (Relational for indexed searching)
+  processor         String?           // e.g., "Intel Core i5-1135G7"
+  generation        String?           // e.g., "11th Gen", "12th Gen", "M2"
+  ram               String?           // e.g., "16GB DDR4"
+  storage           String?           // e.g., "512GB NVMe SSD"
+  displaySize       String?           // e.g., "14 inch", "15.6 inch"
+  color             String?           // e.g., "Space Gray", "Silver", "Black"
+
+  // Accessories Checklist
+  chargerSerial     String?
+  hasBag            Boolean           @default(true)
+  hasMouse          Boolean           @default(false)
+
+  // Acquisition Source & Donor Association
+  acquisitionSource AcquisitionSource @default(PURCHASED)
+  donorId           Int?
+  donor             Donor?            @relation(fields: [donorId], references: [id], onDelete: SetNull)
+
+  // Procurement & Warranty
+  purchaseDate      DateTime?
+  invoiceNo         String?
+  warrantyExpiry    DateTime?
+  
+  // Current Lifecycle Status
+  condition         AssetCondition    @default(BRAND_NEW)
+  status            AssetStatus       @default(AVAILABLE)
+  remarks           String?           @db.Text
+
+  // Location / Assigned Department (Optional default base location)
+  departmentId      Int?
+  department        Department?       @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+
+  // CRITICAL DESIGN FOR PHASE 2: Native MySQL JSON for Dynamic Attributes
+  attributes        Json?
+
+  isArchived        Boolean           @default(false)
+  archivedAt        DateTime?
+
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  // Relational Histories
+  allocations       Allocation[]
+  maintenanceLogs   MaintenanceLog[]
+
+  @@index([status])
+  @@index([category])
+  @@index([condition])
+  @@index([make])
+  @@index([departmentId])
+  @@index([acquisitionSource])
+  @@index([donorId])
+  @@index([isArchived])
+}
+
+/// Immutable Hardware Allocation Ledger tracking distribution to Students & Faculty
+model Allocation {
+  id              Int              @id @default(autoincrement())
+  assetId         Int
+  asset           Asset            @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  
+  recipientId     Int
+  recipient       User             @relation("RecipientAllocations", fields: [recipientId], references: [id], onDelete: Restrict)
+  
+  issuedById      Int
+  issuedBy        User             @relation("IssuerAllocations", fields: [issuedById], references: [id], onDelete: Restrict)
+  
+  issuedAt        DateTime         @default(now())
+  dueDate         DateTime?
+  
+  returnedAt      DateTime?
+  returnedById    Int?
+  returnedBy      User?            @relation("ReturnReceiverAllocations", fields: [returnedById], references: [id], onDelete: SetNull)
+  
+  issueCondition  AssetCondition   @default(GOOD)
+  returnCondition AssetCondition?
+  
+  fineAmount      Decimal?         @default(0) @db.Decimal(10, 2)
+  fineReason      String?          @db.Text
+  finePaid        Boolean?         @default(false)
+  finePaymentMode String?          // CASH, UPI, BANK_TRANSFER, PENDING
+  
+  status          AllocationStatus @default(ACTIVE)
+  notes           String?          @db.Text
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([assetId])
+  @@index([recipientId])
+  @@index([status])
+}
+
+/// Hardware Service, Component Replacement & Upgrade History
+model MaintenanceLog {
+  id                 Int             @id @default(autoincrement())
+  assetId            Int
+  asset              Asset           @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  
+  performedById      Int?
+  performedBy        User?           @relation(fields: [performedById], references: [id], onDelete: SetNull)
+  
+  type               MaintenanceType @default(GENERAL_SERVICE)
+  cost               Decimal?        @db.Decimal(10, 2)
+  vendorOrTechnician String?
+  description        String          @db.Text
+  performedAt        DateTime        @default(now())
+  
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  @@index([assetId])
+  @@index([type])
+}
+
+/// Annual Student Software License Fee Records and Clearance Ledger
+model LicenseFeeRecord {
+  id           Int       @id @default(autoincrement())
+  studentId    Int
+  student      User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  academicYear String    // e.g. "2025-2026"
+  semester     String?   // e.g. "Semester 3"
+  amount       Decimal   @db.Decimal(10, 2)
+  status       FeeStatus @default(UNPAID)
+  paymentDate  DateTime?
+  receiptNo    String?
+  notes        String?   @db.Text
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([studentId, academicYear])
+  @@index([status])
+  @@index([academicYear])
+}
+
+/// System-Wide Security Audit Trail and Operational Activity Log
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  actorId    Int?
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  
+  action     String   // e.g. "ASSET_CREATED", "ALLOCATION_ISSUED", "ASSET_RETURNED"
+  entityType String   // e.g. "Asset", "Allocation", "User"
+  entityId   String
+  details    Json?    // Snapshot of changes / payload
+  ipAddress  String?
+  
+  createdAt  DateTime @default(now())
+
+  @@index([actorId])
+  @@index([action])
+  @@index([entityType])
+  @@index([createdAt])
+}
+
