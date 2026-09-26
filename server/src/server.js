@@ -15,9 +15,10 @@ const startServer = async () => {
     await prisma.$connect();
     console.log('✅ Connected to MySQL database via Prisma ORM.');
 
-    const server = app.listen(config.port, () => {
-      console.log(`🚀 SSISM IMS Server running in ${config.nodeEnv} mode on port ${config.port}`);
-      console.log(`📡 API Base: http://localhost:${config.port}/api`);
+    const PORT = process.env.PORT || config.port || 5000;
+    const server = app.listen(PORT, '0.0.0.0', () => {
+      console.log(`🚀 SSISM IMS Server running in ${config.nodeEnv} mode on port ${PORT}`);
+      console.log(`📡 API Base: http://localhost:${PORT}/api`);
     });
 
     const shutdown = async (signal) => {

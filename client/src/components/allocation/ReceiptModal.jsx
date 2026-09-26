@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal } from '../common/Modal';
 import { Printer, Download } from 'lucide-react';
+import { API_BASE_URL } from '../../services/api';
 
 /**
  * ReceiptModal Component
@@ -18,8 +19,7 @@ export const ReceiptModal = ({ isOpen, onClose, allocation }) => {
   if (!allocation) return null;
 
   const handleDownloadPDF = () => {
-    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-    window.open(`${apiBase}/data/receipt/${allocation.id}/pdf`, '_blank');
+    window.open(`${API_BASE_URL}/data/receipt/${allocation.id}/pdf`, '_blank');
   };
 
   const handlePrint = () => {

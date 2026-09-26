@@ -33,6 +33,9 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     const res = await api.post('/auth/login', { email, password });
     if (res.data?.data?.user) {
+      if (res.data?.data?.accessToken) {
+        localStorage.setItem('token', res.data.data.accessToken);
+      }
       setUser(res.data.data.user);
       return res.data.data.user;
     }
@@ -46,6 +49,7 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       console.error('Logout error:', err);
     } finally {
+      localStorage.removeItem('token');
       setUser(null);
       window.location.href = '/login';
     }

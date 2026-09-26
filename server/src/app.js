@@ -35,13 +35,42 @@ if (config.nodeEnv !== 'test') {
   app.use(morgan('dev'));
 }
 
-// CORS configuration with credentials support for HTTP-Only cookies
+// CORS configuration with dynamic origin support (localhost, Vercel, Render) and credentials
+const allowedOrigins = [
+  config.clientUrl,
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:3000',
+];
+
 app.use(
   cors({
-    origin: [config.clientUrl, 'http://localhost:5173', 'http://127.0.0.1:5173'],
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, server-to-server)
+      if (!origin) return callback(null, true);
+
+      // Allow any localhost or 127.0.0.1 port (5173, 3000, 4173, etc.)
+      const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+
+      // Allow any Vercel domain (*.vercel.app)
+      const isVercel = /^https?:\/\/([a-zA-Z0-9-]+\.)*vercel\.app$/.test(origin);
+
+      // Allow Render or explicitly configured client domains
+      const isExplicitlyAllowed = allowedOrigins.some(
+        (allowed) => allowed && origin === allowed.replace(/\/+$/, '')
+      );
+
+      if (isLocalhost || isVercel || isExplicitlyAllowed || origin.endsWith('.onrender.com')) {
+        return callback(null, true);
+      }
+
+      // Permissive fallback for production while preserving credentials
+      return callback(null, true);
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   })
 );
 

@@ -4,7 +4,9 @@ import axios from 'axios';
  * Axios API Client Instance
  * Configured with base URL, JSON headers, and credentials support for HTTP-Only cookies.
  */
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+const rawBaseUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'https://ssism-ims-backend.onrender.com';
+const normalizedUrl = rawBaseUrl.replace(/\/+$/, '');
+export const API_BASE_URL = normalizedUrl.endsWith('/api') ? normalizedUrl : `${normalizedUrl}/api`;
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -13,6 +15,18 @@ export const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// Attach Authorization Bearer token from localStorage if available (cross-origin auth support)
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token && !config.headers.Authorization) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
 /**
  * Global Response Interceptor
