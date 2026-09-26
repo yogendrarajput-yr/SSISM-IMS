@@ -70,7 +70,17 @@ app.use(
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'Accept',
+      'Origin',
+      'Access-Control-Request-Method',
+      'Access-Control-Request-Headers',
+    ],
+    exposedHeaders: ['Set-Cookie', 'Authorization'],
+    optionsSuccessStatus: 204,
   })
 );
 
@@ -82,11 +92,16 @@ app.use(cookieParser());
 // Rate Limiter
 app.use('/api', apiRateLimiter);
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
+// Root and Health check endpoints
+app.get(['/', '/health', '/api/health'], (req, res) => {
   res.status(200).json({
     status: 'healthy',
     service: 'SSISM IMS Backend API',
+    version: '1.0.0',
+    endpoints: {
+      health: '/api/health',
+      api: '/api',
+    },
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
   });
