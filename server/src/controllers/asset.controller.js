@@ -147,3 +147,40 @@ export const getDashboardStats = async (req, res, next) => {
   }
 };
 
+/**
+ * Controller: Record physical audit / verification on a hardware asset.
+ */
+export const verifyAsset = async (req, res, next) => {
+  try {
+    const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const result = await assetService.recordPhysicalVerification(
+      req.params.id,
+      req.body,
+      req.user.id,
+      ipAddress
+    );
+    res.status(200).json({
+      success: true,
+      message: 'Physical verification recorded successfully',
+      data: result,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Controller: Retrieve overdue physical audit report for laptops.
+ */
+export const getAuditOverdueReport = async (req, res, next) => {
+  try {
+    const report = await assetService.getPhysicalAuditOverdueReport(req.query);
+    res.status(200).json({
+      success: true,
+      data: report,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+

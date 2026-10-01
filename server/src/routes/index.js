@@ -49,32 +49,39 @@ router.get('/departments', authenticate, async (req, res, next) => {
  * Fetch candidates (Students & Faculty) for the allocation modal with active allocation status and license fees.
  */
 router.get('/recipients', authenticate, async (req, res, next) => {
-
   try {
-    const { search, role, departmentId } = req.query;
+    const { search, role, departmentId, excludeActive = 'true' } = req.query;
     const where = {
-      role: role ? role : { in: ['STUDENT', 'FACULTY'] },
+      role: role ? role : { in: ['STUDENT', 'FACULTY', 'STAFF', 'HIGHER_MANAGEMENT'] },
       isActive: true,
       isArchived: false,
     };
 
     if (departmentId) where.departmentId = Number(departmentId);
-    if (search) {
+    if (search && search.trim()) {
       where.OR = [
-        { name: { contains: search } },
-        { rollNumberOrEmpId: { contains: search } },
-        { email: { contains: search } },
+        { name: { contains: search.trim() } },
+        { rollNumberOrEmpId: { contains: search.trim() } },
+        { email: { contains: search.trim() } },
       ];
+    }
+
+    // Smart Dynamic Filter: Exclude users who currently hold an active allocated device
+    if (excludeActive === 'true') {
+      where.receivedAllocations = {
+        none: { status: 'ACTIVE' },
+      };
     }
 
     const recipients = await prisma.user.findMany({
       where,
-      take: 50,
+      take: 200,
       orderBy: { name: 'asc' },
       select: {
         id: true,
         name: true,
         email: true,
+        phone: true,
         rollNumberOrEmpId: true,
         role: true,
         batchYear: true,

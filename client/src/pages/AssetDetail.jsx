@@ -19,7 +19,9 @@ import {
   Gift,
   Monitor,
   Palette,
+  ShieldCheck,
 } from 'lucide-react';
+import { PhysicalVerifyModal } from '../components/inventory/PhysicalVerifyModal';
 
 /**
  * Asset Profile & Comprehensive Lifecycle View
@@ -38,6 +40,7 @@ export const AssetDetail = () => {
   const [maintenanceOpen, setMaintenanceOpen] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState(null);
+  const [verifyModalOpen, setVerifyModalOpen] = useState(false);
 
   const { isStaff } = useAuth();
 
@@ -138,6 +141,17 @@ export const AssetDetail = () => {
         </div>
 
         <div className="flex items-center space-x-2.5">
+          {/* Physical Verification check action */}
+          {isStaff && (
+            <button
+              onClick={() => setVerifyModalOpen(true)}
+              className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-bold rounded-xl transition flex items-center space-x-1.5 shadow-2xs"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Mark Verified</span>
+            </button>
+          )}
+
           {/* Issue laptop action (only active when asset is available in stock) */}
           {isStaff && asset.status === 'AVAILABLE' && (
             <button
@@ -491,6 +505,14 @@ export const AssetDetail = () => {
       <AddMaintenanceModal
         isOpen={maintenanceOpen}
         onClose={() => setMaintenanceOpen(false)}
+        asset={asset}
+        onSuccess={() => fetchAsset()}
+      />
+
+      {/* Physical Verification Check Modal */}
+      <PhysicalVerifyModal
+        isOpen={verifyModalOpen}
+        onClose={() => setVerifyModalOpen(false)}
         asset={asset}
         onSuccess={() => fetchAsset()}
       />

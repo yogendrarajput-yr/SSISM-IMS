@@ -4,7 +4,7 @@ import axios from 'axios';
  * Axios API Client Instance
  * Configured with base URL, JSON headers, and credentials support for HTTP-Only cookies.
  */
-const rawBaseUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'https://ssism-ims-backend.onrender.com';
+const rawBaseUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'http://localhost:5001';
 const normalizedUrl = rawBaseUrl.replace(/\/+$/, '');
 export const API_BASE_URL = normalizedUrl.endsWith('/api') ? normalizedUrl : `${normalizedUrl}/api`;
 

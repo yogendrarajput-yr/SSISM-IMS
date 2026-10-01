@@ -1,6 +1,10 @@
 import { prisma } from '../config/db.js';
 import { AppError } from '../utils/appError.js';
 import { logAudit } from './audit.service.js';
+import {
+  SEND_LAPTOP_ISSUED_EMAIL,
+  SEND_LAPTOP_RETURNED_EMAIL,
+} from './notification.service.js';
 
 /**
  * Retrieve paginated allocations list with search, status, and department filtering.
@@ -149,7 +153,7 @@ export const createAllocation = async ({
   const parsedAssetId = Number(assetId);
   const parsedRecipientId = Number(recipientId);
 
-  return await prisma.$transaction(async (tx) => {
+  const createdAllocation = await prisma.$transaction(async (tx) => {
     // 1. Validate Recipient exists
     const recipient = await tx.user.findUnique({
       where: { id: parsedRecipientId },
@@ -236,7 +240,7 @@ export const createAllocation = async ({
       include: {
         asset: true,
         recipient: {
-          select: { id: true, name: true, email: true, rollNumberOrEmpId: true, role: true },
+          select: { id: true, name: true, email: true, phone: true, rollNumberOrEmpId: true, role: true },
         },
         issuedBy: { select: { id: true, name: true, email: true } },
       },
@@ -261,6 +265,16 @@ export const createAllocation = async ({
 
     return allocation;
   });
+
+  // Scalable Deferred/Mock Notification Automation
+  SEND_LAPTOP_ISSUED_EMAIL({
+    allocation: createdAllocation,
+    recipient: createdAllocation.recipient,
+    asset: createdAllocation.asset,
+    issuedBy: createdAllocation.issuedBy,
+  }).catch((err) => console.error('Notification dispatch error (Issued):', err));
+
+  return createdAllocation;
 };
 
 /**
@@ -281,7 +295,7 @@ export const returnAllocation = async ({
   const parsedFineAmount = Number(fineAmount) || 0;
   const isFinePaid = Boolean(finePaid);
 
-  return await prisma.$transaction(async (tx) => {
+  const completedReturn = await prisma.$transaction(async (tx) => {
     const allocation = await tx.allocation.findUnique({
       where: { id: parsedId },
       include: { asset: true, recipient: true },
@@ -323,9 +337,11 @@ export const returnAllocation = async ({
       },
       include: {
         asset: true,
-        recipient: { select: { id: true, name: true, rollNumberOrEmpId: true } },
-        issuedBy: { select: { id: true, name: true } },
-        returnedBy: { select: { id: true, name: true } },
+        recipient: {
+          select: { id: true, name: true, email: true, phone: true, rollNumberOrEmpId: true, role: true },
+        },
+        issuedBy: { select: { id: true, name: true, email: true } },
+        returnedBy: { select: { id: true, name: true, email: true } },
       },
     });
 
@@ -371,6 +387,16 @@ export const returnAllocation = async ({
 
     return updatedAllocation;
   });
+
+  // Scalable Deferred/Mock Notification Automation
+  SEND_LAPTOP_RETURNED_EMAIL({
+    allocation: completedReturn,
+    recipient: completedReturn.recipient,
+    asset: completedReturn.asset,
+    returnedBy: completedReturn.returnedBy,
+  }).catch((err) => console.error('Notification dispatch error (Returned):', err));
+
+  return completedReturn;
 };
 
 /**

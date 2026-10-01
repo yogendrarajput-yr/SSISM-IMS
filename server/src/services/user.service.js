@@ -189,8 +189,8 @@ export const createStudent = async (data, actorId, ipAddress) => {
     feeAmount = 1500,
   } = data;
 
-  if (!name || !email || !rollNumber) {
-    throw new AppError('Student Name, Email ID, and Roll Number are required.', 400);
+  if (!name || !email || !rollNumber || !phone) {
+    throw new AppError('Student Name, Email ID, Roll Number, and Mobile Number are required.', 400);
   }
 
   // Check unique constraints
@@ -588,8 +588,8 @@ export const createStaff = async (data, actorId, ipAddress) => {
     address,
   } = data;
 
-  if (!name || !email || !employeeId) {
-    throw new AppError('Staff Name, Email ID, and Employee ID are required.', 400);
+  if (!name || !email || !employeeId || !phone) {
+    throw new AppError('Staff Name, Email ID, Employee ID, and Mobile Number are required.', 400);
   }
 
   const existingEmail = await prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
@@ -848,6 +848,13 @@ export const getUserDetails = async (id) => {
 export const updateUser = async (id, data, actorId, ipAddress) => {
   const user = await prisma.user.findUnique({ where: { id: Number(id) } });
   if (!user) throw new AppError('User not found.', 404);
+
+  if (data.email !== undefined && !data.email.trim()) {
+    throw new AppError('Email ID is required and cannot be empty.', 400);
+  }
+  if (data.phone !== undefined && !data.phone.trim()) {
+    throw new AppError('Mobile / Phone Number is required and cannot be empty.', 400);
+  }
 
   // Check unique constraints if fields changed
   if (data.email && data.email.trim().toLowerCase() !== user.email.toLowerCase()) {

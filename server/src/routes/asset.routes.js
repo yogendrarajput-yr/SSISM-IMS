@@ -11,11 +11,13 @@ import {
   bulkDeleteAssets,
   searchAssets,
   getDashboardStats,
+  verifyAsset,
+  getAuditOverdueReport,
 } from '../controllers/asset.controller.js';
 import { authenticate } from '../middlewares/auth.middleware.js';
 import { authorizeRoles } from '../middlewares/rbac.middleware.js';
 import { validate } from '../middlewares/validate.middleware.js';
-import { createAssetSchema, updateAssetSchema } from '../utils/validators.js';
+import { createAssetSchema, updateAssetSchema, physicalVerifySchema } from '../utils/validators.js';
 
 /**
  * Asset Routes (/api/assets)
@@ -28,8 +30,12 @@ router.use(authenticate);
 
 router.get('/stats', getDashboardStats);
 router.get('/search', searchAssets);
+router.get('/audit/overdue-report', getAuditOverdueReport);
 router.get('/', getAssets);
 router.get('/:id', getAsset);
+
+// Physical verification action on hardware assets
+router.post('/:id/verify', authorizeRoles('SUPER_ADMIN', 'STAFF'), validate(physicalVerifySchema), verifyAsset);
 
 // Staff & Super Admin can create/modify/archive
 router.post('/', authorizeRoles('SUPER_ADMIN', 'STAFF'), validate(createAssetSchema), createAsset);

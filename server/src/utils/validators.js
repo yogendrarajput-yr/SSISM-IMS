@@ -93,3 +93,11 @@ export const updateFeeSchema = z.object({
   notes: z.string().optional().nullable(),
 });
 
+/**
+ * Physical hardware audit verification check schema.
+ */
+export const physicalVerifySchema = z.object({
+  auditStatus: z.enum(['PHYSICAL_OK', 'NEEDS_REPAIR', 'MISSING']).default('PHYSICAL_OK'),
+  remarks: z.string().optional().nullable(),
+});
+

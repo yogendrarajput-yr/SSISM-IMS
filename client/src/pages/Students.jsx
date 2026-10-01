@@ -963,10 +963,11 @@ export const Students = ({ hideTitle = false }) => {
             {/* Mobile Number */}
             <div>
               <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                Mobile Number
+                Mobile Number *
               </label>
               <input
-                type="text"
+                type="tel"
+                required
                 value={studentForm.phone}
                 onChange={(e) => setStudentForm({ ...studentForm, phone: e.target.value })}
                 placeholder="+91 98765 43210"

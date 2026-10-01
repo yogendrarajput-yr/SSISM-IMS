@@ -39,6 +39,7 @@ export const AssetDrawer = ({
   asset,
   onIssue,
   onMaintenance,
+  onVerify,
 }) => {
   const navigate = useNavigate();
   const { isStaff } = useAuth();
@@ -248,6 +249,55 @@ export const AssetDrawer = ({
                 <span>Currently in campus stock, ready for immediate issuance.</span>
               </div>
             )}
+          </div>
+
+          {/* SECTION: PHYSICAL AUDIT & VERIFICATION STATUS */}
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                <span>Physical Audit Status</span>
+              </h3>
+              {isStaff && onVerify && (
+                <button
+                  onClick={() => onVerify(asset)}
+                  className="px-2.5 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition"
+                >
+                  ✓ Mark Verified
+                </button>
+              )}
+            </div>
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-600">Audit Status:</span>
+                <span className="font-bold text-slate-900">
+                  {asset.auditStatus || 'PHYSICAL_OK'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Last Verified:</span>
+                <span className="font-medium text-slate-800">
+                  {asset.lastVerifiedAt
+                    ? new Date(asset.lastVerifiedAt).toLocaleDateString('en-IN', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                      })
+                    : 'Never Verified on Record'}
+                </span>
+              </div>
+              {asset.verifiedBy && (
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Verified By:</span>
+                  <span className="text-slate-700 font-medium">{asset.verifiedBy.name}</span>
+                </div>
+              )}
+              {asset.verificationRemarks && (
+                <div className="pt-1.5 border-t border-slate-200/80 text-[11px] text-slate-600 italic">
+                  "{asset.verificationRemarks}"
+                </div>
+              )}
+            </div>
           </div>
 
           {/* SECTION 4: ACQUISITION & DONOR INFO */}

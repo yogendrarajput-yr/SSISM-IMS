@@ -62,11 +62,12 @@ export const getAssetsList = async ({
       include: {
         department: { select: { id: true, name: true, code: true } },
         donor: { select: { id: true, name: true, organization: true } },
+        verifiedBy: { select: { id: true, name: true, email: true } },
         allocations: {
           where: { status: 'ACTIVE' },
           include: {
             recipient: {
-              select: { id: true, name: true, email: true, rollNumberOrEmpId: true, role: true },
+              select: { id: true, name: true, email: true, phone: true, rollNumberOrEmpId: true, role: true },
             },
           },
         },
@@ -141,6 +142,14 @@ export const getAssetById = async (id) => {
           },
           issuedBy: { select: { id: true, name: true, email: true } },
           returnedBy: { select: { id: true, name: true, email: true } },
+        },
+      },
+      // Physical Verification History Log
+      verifiedBy: { select: { id: true, name: true, email: true } },
+      physicalAudits: {
+        orderBy: { verifiedAt: 'desc' },
+        include: {
+          verifiedBy: { select: { id: true, name: true, email: true } },
         },
       },
       // Hardware Repairs & Upgrades History Log
@@ -623,5 +632,265 @@ export const getDashboardMetrics = async ({ departmentId, make } = {}) => {
     recentMaintenance,
     feeStats,
     makes: distinctMakes.map((m) => m.make).filter(Boolean),
+  };
+};
+
+/**
+ * Record a physical verification / audit check on a hardware asset.
+ * Updates lastVerifiedAt, verifiedBy, auditStatus, remarks, and logs immutable entry.
+ */
+export const recordPhysicalVerification = async (id, data, actorId, ipAddress) => {
+  const { auditStatus = 'PHYSICAL_OK', remarks } = data;
+  const parsedId = Number(id);
+
+  const asset = await prisma.asset.findUnique({
+    where: { id: parsedId },
+    include: {
+      allocations: {
+        where: { status: 'ACTIVE' },
+        include: { recipient: true },
+      },
+    },
+  });
+
+  if (!asset) {
+    throw new AppError('Asset not found.', 404);
+  }
+
+  const validStatuses = ['PHYSICAL_OK', 'NEEDS_REPAIR', 'MISSING'];
+  if (!validStatuses.includes(auditStatus)) {
+    throw new AppError(`Invalid audit status. Must be one of: ${validStatuses.join(', ')}`, 400);
+  }
+
+  // Adjust asset operational status if critical defects or missing
+  let nextAssetStatus = asset.status;
+  if (auditStatus === 'MISSING') {
+    nextAssetStatus = 'RETIRED';
+  } else if (auditStatus === 'NEEDS_REPAIR' && asset.status === 'AVAILABLE') {
+    nextAssetStatus = 'UNDER_MAINTENANCE';
+  }
+
+  const [updatedAsset, auditEntry] = await prisma.$transaction([
+    prisma.asset.update({
+      where: { id: parsedId },
+      data: {
+        lastVerifiedAt: new Date(),
+        verifiedById: actorId,
+        auditStatus,
+        verificationRemarks: remarks ? remarks.trim() : null,
+        status: nextAssetStatus,
+      },
+      include: {
+        verifiedBy: { select: { id: true, name: true, email: true } },
+        allocations: {
+          where: { status: 'ACTIVE' },
+          include: {
+            recipient: { select: { id: true, name: true, rollNumberOrEmpId: true, role: true } },
+          },
+        },
+      },
+    }),
+    prisma.physicalAuditLog.create({
+      data: {
+        assetId: parsedId,
+        verifiedById: actorId,
+        auditStatus,
+        remarks: remarks ? remarks.trim() : null,
+        verifiedAt: new Date(),
+      },
+      include: {
+        verifiedBy: { select: { id: true, name: true } },
+      },
+    }),
+  ]);
+
+  await logAudit({
+    actorId,
+    action: 'PHYSICAL_VERIFICATION_RECORDED',
+    entityType: 'Asset',
+    entityId: String(parsedId),
+    details: {
+      assetTag: asset.assetTag,
+      auditStatus,
+      remarks,
+      previousStatus: asset.status,
+      nextStatus: nextAssetStatus,
+    },
+    ipAddress,
+  });
+
+  return { asset: updatedAsset, audit: auditEntry };
+};
+
+/**
+ * Filterable Physical Audit & Overdue Verification Report
+ * Identifies laptops overdue for 6-month or 1-year verification, highlighting student-assigned assets.
+ */
+export const getPhysicalAuditOverdueReport = async ({
+  period = '6_MONTHS', // '6_MONTHS' | '1_YEAR' | 'ALL'
+  onlyStudentAssigned = 'false',
+  auditStatus,
+  search = '',
+  page = 1,
+  limit = 15,
+}) => {
+  const now = new Date();
+  const sixMonthsAgo = new Date(now.getTime() - 180 * 86400000);
+  const oneYearAgo = new Date(now.getTime() - 365 * 86400000);
+
+  const where = { isArchived: false, category: 'LAPTOP' };
+
+  if (period === '6_MONTHS') {
+    where.OR = [
+      { lastVerifiedAt: null },
+      { lastVerifiedAt: { lt: sixMonthsAgo } },
+    ];
+  } else if (period === '1_YEAR') {
+    where.OR = [
+      { lastVerifiedAt: null },
+      { lastVerifiedAt: { lt: oneYearAgo } },
+    ];
+  }
+
+  if (auditStatus) {
+    if (auditStatus === 'UNVERIFIED') {
+      where.lastVerifiedAt = null;
+    } else {
+      where.auditStatus = auditStatus;
+    }
+  }
+
+  if (onlyStudentAssigned === 'true') {
+    where.allocations = {
+      some: {
+        status: 'ACTIVE',
+        recipient: { role: 'STUDENT' },
+      },
+    };
+  }
+
+  if (search && search.trim()) {
+    const term = search.trim();
+    const searchFilter = {
+      OR: [
+        { assetTag: { contains: term } },
+        { serialNumber: { contains: term } },
+        { model: { contains: term } },
+        { make: { contains: term } },
+        { allocations: { some: { status: 'ACTIVE', recipient: { name: { contains: term } } } } },
+        { allocations: { some: { status: 'ACTIVE', recipient: { rollNumberOrEmpId: { contains: term } } } } },
+      ],
+    };
+
+    if (where.OR) {
+      where.AND = [
+        { OR: where.OR },
+        searchFilter,
+      ];
+      delete where.OR;
+    } else {
+      Object.assign(where, searchFilter);
+    }
+  }
+
+  const skip = (Number(page) - 1) * Number(limit);
+
+  const [assets, total, allOverdue6Months, allOverdue1Year, studentOverdueCount, statusCounts] = await Promise.all([
+    prisma.asset.findMany({
+      where,
+      skip,
+      take: Number(limit),
+      orderBy: [
+        { lastVerifiedAt: 'asc' }, // Unverified / oldest first
+        { id: 'desc' },
+      ],
+      include: {
+        department: { select: { id: true, name: true, code: true } },
+        verifiedBy: { select: { id: true, name: true, email: true } },
+        allocations: {
+          where: { status: 'ACTIVE' },
+          include: {
+            recipient: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+                rollNumberOrEmpId: true,
+                role: true,
+                branch: true,
+                batchYear: true,
+                department: { select: { id: true, name: true, code: true } },
+              },
+            },
+          },
+        },
+      },
+    }),
+    prisma.asset.count({ where }),
+    prisma.asset.count({
+      where: {
+        isArchived: false,
+        category: 'LAPTOP',
+        OR: [{ lastVerifiedAt: null }, { lastVerifiedAt: { lt: sixMonthsAgo } }],
+      },
+    }),
+    prisma.asset.count({
+      where: {
+        isArchived: false,
+        category: 'LAPTOP',
+        OR: [{ lastVerifiedAt: null }, { lastVerifiedAt: { lt: oneYearAgo } }],
+      },
+    }),
+    prisma.asset.count({
+      where: {
+        isArchived: false,
+        category: 'LAPTOP',
+        OR: [{ lastVerifiedAt: null }, { lastVerifiedAt: { lt: sixMonthsAgo } }],
+        allocations: { some: { status: 'ACTIVE', recipient: { role: 'STUDENT' } } },
+      },
+    }),
+    prisma.asset.groupBy({
+      by: ['auditStatus'],
+      where: { isArchived: false, category: 'LAPTOP' },
+      _count: { auditStatus: true },
+    }),
+  ]);
+
+  // Enrich assets with overdue calculations and student assignment flags
+  const enrichedAssets = assets.map((asset) => {
+    const activeAlloc = asset.allocations?.[0];
+    const isStudentAssigned = activeAlloc?.recipient?.role === 'STUDENT';
+    const lastDate = asset.lastVerifiedAt ? new Date(asset.lastVerifiedAt) : null;
+    const daysSince = lastDate ? Math.floor((now.getTime() - lastDate.getTime()) / 86400000) : null;
+
+    return {
+      ...asset,
+      activeAllocation: activeAlloc || null,
+      currentHolder: activeAlloc?.recipient || null,
+      isStudentAssigned,
+      daysSinceVerification: daysSince,
+      isOverdue6Months: !lastDate || daysSince > 180,
+      isOverdue1Year: !lastDate || daysSince > 365,
+    };
+  });
+
+  return {
+    assets: enrichedAssets,
+    metrics: {
+      totalOverdue6Months: allOverdue6Months,
+      totalOverdue1Year: allOverdue1Year,
+      studentAssignedOverdueCount: studentOverdueCount,
+      statusCounts: statusCounts.reduce((acc, curr) => {
+        if (curr.auditStatus) acc[curr.auditStatus] = curr._count.auditStatus;
+        return acc;
+      }, {}),
+    },
+    pagination: {
+      total,
+      page: Number(page),
+      limit: Number(limit),
+      totalPages: Math.ceil(total / Number(limit)),
+    },
   };
 };

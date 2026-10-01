@@ -834,10 +834,11 @@ export const StaffDirectory = ({ hideTitle = false }) => {
             {/* Mobile Number */}
             <div>
               <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                Mobile Number
+                Mobile Number *
               </label>
               <input
-                type="text"
+                type="tel"
+                required
                 value={staffForm.phone}
                 onChange={(e) => setStaffForm({ ...staffForm, phone: e.target.value })}
                 placeholder="+91 98765 43210"

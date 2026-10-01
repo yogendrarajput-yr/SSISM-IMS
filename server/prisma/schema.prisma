@@ -69,6 +69,12 @@ enum FeeStatus {
   EXEMPTED
 }
 
+enum AuditVerificationStatus {
+  PHYSICAL_OK
+  NEEDS_REPAIR
+  MISSING
+}
+
 /// Dynamic Master Asset Categories for Phase 2 scaling (e.g., Laptop, Router, CCTV, Smart TV)
 model Category {
   id          Int      @id @default(autoincrement())
@@ -151,6 +157,10 @@ model User {
   // Audit activities triggered by this user
   auditLogs           AuditLog[]
 
+  // Physical Verification relations
+  verifiedAssets          Asset[]            @relation("AssetVerifier")
+  conductedPhysicalAudits PhysicalAuditLog[] @relation("PhysicalAuditsConducted")
+
   @@index([role])
   @@index([departmentId])
   @@index([rollNumberOrEmpId])
@@ -205,12 +215,20 @@ model Asset {
   isArchived        Boolean           @default(false)
   archivedAt        DateTime?
 
+  // Physical Verification & Audit Tracking
+  lastVerifiedAt      DateTime?
+  verifiedById        Int?
+  verifiedBy          User?                    @relation("AssetVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+  auditStatus         AuditVerificationStatus? @default(PHYSICAL_OK)
+  verificationRemarks String?                  @db.Text
+
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
   // Relational Histories
   allocations       Allocation[]
   maintenanceLogs   MaintenanceLog[]
+  physicalAudits    PhysicalAuditLog[]
 
   @@index([status])
   @@index([category])
@@ -220,6 +238,8 @@ model Asset {
   @@index([acquisitionSource])
   @@index([donorId])
   @@index([isArchived])
+  @@index([lastVerifiedAt])
+  @@index([auditStatus])
 }
 
 /// Immutable Hardware Allocation Ledger tracking distribution to Students & Faculty
@@ -322,5 +342,25 @@ model AuditLog {
   @@index([action])
   @@index([entityType])
   @@index([createdAt])
+}
+
+/// Physical Audit & Periodic Verification Ledger for Hardware Custody
+model PhysicalAuditLog {
+  id           Int                     @id @default(autoincrement())
+  assetId      Int
+  asset        Asset                   @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  
+  verifiedById Int?
+  verifiedBy   User?                   @relation("PhysicalAuditsConducted", fields: [verifiedById], references: [id], onDelete: SetNull)
+  
+  auditStatus  AuditVerificationStatus @default(PHYSICAL_OK)
+  remarks      String?                 @db.Text
+  verifiedAt   DateTime                @default(now())
+  createdAt    DateTime                @default(now())
+
+  @@index([assetId])
+  @@index([verifiedById])
+  @@index([auditStatus])
+  @@index([verifiedAt])
 }
 

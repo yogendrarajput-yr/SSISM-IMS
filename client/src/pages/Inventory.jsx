@@ -27,7 +27,10 @@ import {
   Users,
   Gift,
   Trash2,
+  ShieldCheck,
 } from 'lucide-react';
+import { PhysicalAuditReport } from '../components/inventory/PhysicalAuditReport';
+import { PhysicalVerifyModal } from '../components/inventory/PhysicalVerifyModal';
 
 const INVENTORY_COLUMNS = [
   { key: 'assetTag', label: 'Asset Tag / Serial', required: true },
@@ -79,6 +82,8 @@ export const Inventory = () => {
   const [maintenanceAsset, setMaintenanceAsset] = useState(null);
   const [activeReceipt, setActiveReceipt] = useState(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [verifyAssetModal, setVerifyAssetModal] = useState(null);
+  const [viewMode, setViewMode] = useState(searchParams.get('view') || 'catalog');
 
   // New Asset Form State
   const [newAsset, setNewAsset] = useState({
@@ -287,6 +292,47 @@ export const Inventory = () => {
           )}
         </div>
       </div>
+
+      {/* View Mode Switcher */}
+      <div className="flex items-center space-x-2 border-b border-slate-200 pb-3">
+        <button
+          onClick={() => {
+            setViewMode('catalog');
+            setSearchParams({});
+          }}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
+            viewMode === 'catalog'
+              ? 'bg-[#F26522] text-white shadow-xs'
+              : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+          }`}
+        >
+          <Laptop className="w-4 h-4" />
+          <span>Master Hardware Catalog</span>
+        </button>
+
+        <button
+          onClick={() => {
+            setViewMode('physical-audit');
+            setSearchParams({ view: 'physical-audit' });
+          }}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
+            viewMode === 'physical-audit'
+              ? 'bg-slate-900 text-white shadow-xs'
+              : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+          }`}
+        >
+          <ShieldCheck className="w-4 h-4 text-emerald-400" />
+          <span>Physical Verification & Audit Due</span>
+          <span className="ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500 text-white">
+            Audit Module
+          </span>
+        </button>
+      </div>
+
+      {viewMode === 'physical-audit' ? (
+        <PhysicalAuditReport />
+      ) : (
+        <>
 
       {/* Top KPI Metric Cards (Unified Master StatCard Design) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -616,6 +662,16 @@ export const Inventory = () => {
                                 className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition"
                               >
                                 <Wrench className="w-4 h-4" />
+                              </button>
+                            )}
+
+                            {isStaff && (
+                              <button
+                                onClick={() => setVerifyAssetModal(asset)}
+                                title="Mark Verified / Physical Audit Check"
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition"
+                              >
+                                <ShieldCheck className="w-4 h-4" />
                               </button>
                             )}
 
@@ -959,7 +1015,27 @@ export const Inventory = () => {
         asset={drawerAsset}
         onIssue={(asset) => setAllocateAsset(asset)}
         onMaintenance={(asset) => setMaintenanceAsset(asset)}
+        onVerify={(asset) => setVerifyAssetModal(asset)}
       />
+
+      {/* Physical Verification Action Modal */}
+      <PhysicalVerifyModal
+        isOpen={Boolean(verifyAssetModal)}
+        onClose={() => setVerifyAssetModal(null)}
+        asset={verifyAssetModal}
+        onSuccess={() => {
+          fetchAssets();
+          if (drawerAsset && verifyAssetModal && drawerAsset.id === verifyAssetModal.id) {
+            setDrawerAsset((prev) => ({
+              ...prev,
+              lastVerifiedAt: new Date().toISOString(),
+              auditStatus: 'PHYSICAL_OK',
+            }));
+          }
+        }}
+      />
+        </>
+      )}
     </div>
   );
 };

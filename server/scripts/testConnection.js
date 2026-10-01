@@ -1,7 +1,7 @@
 /**
  * Lightweight Verification Script: Ping live Render backend and verify connection.
  */
-const API_URL = process.env.API_URL || 'https://ssism-ims-backend.onrender.com';
+const API_URL = process.env.API_URL || 'http://localhost:5001';
 
 async function testBackend() {
   console.log('======================================================');
