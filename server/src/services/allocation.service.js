@@ -266,14 +266,6 @@ export const createAllocation = async ({
     return allocation;
   });
 
-  // Scalable Deferred/Mock Notification Automation
-  SEND_LAPTOP_ISSUED_EMAIL({
-    allocation: createdAllocation,
-    recipient: createdAllocation.recipient,
-    asset: createdAllocation.asset,
-    issuedBy: createdAllocation.issuedBy,
-  }).catch((err) => console.error('Notification dispatch error (Issued):', err));
-
   return createdAllocation;
 };
 
@@ -387,14 +379,6 @@ export const returnAllocation = async ({
 
     return updatedAllocation;
   });
-
-  // Scalable Deferred/Mock Notification Automation
-  SEND_LAPTOP_RETURNED_EMAIL({
-    allocation: completedReturn,
-    recipient: completedReturn.recipient,
-    asset: completedReturn.asset,
-    returnedBy: completedReturn.returnedBy,
-  }).catch((err) => console.error('Notification dispatch error (Returned):', err));
 
   return completedReturn;
 };

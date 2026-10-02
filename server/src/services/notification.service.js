@@ -13,6 +13,7 @@
  */
 
 import nodemailer from 'nodemailer';
+import { isFacultyOrEmployee } from '../utils/emailService.js';
 
 /**
  * Check if real email delivery is enabled and SMTP is configured
@@ -373,6 +374,13 @@ export const sendLaptopIssuedEmail = async ({ allocation, recipient, asset, issu
   const htmlContent = generateIssueReceiptHtml(payload);
   const subject = `SSISM IT Hardware Allocation Receipt - ${payload.assetTag} (${payload.receiptRef})`;
 
+  // Role filter check: Emails ONLY sent to Faculty/Employees
+  const userRole = recipient?.role || allocation?.recipient?.role;
+  if (userRole && !isFacultyOrEmployee(userRole)) {
+    console.log(`Email skipped for STUDENT role: ${payload.recipientEmail || payload.recipientName || 'Unknown Student'}`);
+    return { sent: false, skipped: true, reason: 'STUDENT_ROLE_SKIPPED' };
+  }
+
   // If email notifications are active AND SMTP transporter is available, send via SMTP
   if (isEmailEnabled()) {
     const transporter = getTransporter();
@@ -386,7 +394,7 @@ export const sendLaptopIssuedEmail = async ({ allocation, recipient, asset, issu
           html: htmlContent,
         });
 
-        console.log(`\n✓ [EMAIL_DISPATCHED] Allocation receipt sent to ${payload.recipientEmail} (MessageID: ${info.messageId})`);
+        console.log("Email notification sent to Faculty:", payload.recipientEmail);
         return {
           sent: true,
           status: 'SENT',
@@ -396,7 +404,7 @@ export const sendLaptopIssuedEmail = async ({ allocation, recipient, asset, issu
           timestamp: new Date().toISOString(),
         };
       } catch (sendErr) {
-        console.error('SMTP Delivery Error (Laptop Issued):', sendErr.message);
+        console.error("Failed to send email to Faculty:", payload.recipientEmail, sendErr.message);
         // Fall back to structured console log
       }
     }
@@ -460,6 +468,13 @@ export const sendLaptopReturnedEmail = async ({ allocation, recipient, asset, re
   const htmlContent = generateReturnClearanceHtml(payload);
   const subject = `SSISM IT Hardware Asset Return Clearance - ${payload.assetTag} (${payload.clearanceRef})`;
 
+  // Role filter check: Emails ONLY sent to Faculty/Employees
+  const userRole = recipient?.role || allocation?.recipient?.role;
+  if (userRole && !isFacultyOrEmployee(userRole)) {
+    console.log(`Email skipped for STUDENT role: ${payload.recipientEmail || payload.recipientName || 'Unknown Student'}`);
+    return { sent: false, skipped: true, reason: 'STUDENT_ROLE_SKIPPED' };
+  }
+
   // If email notifications are active AND SMTP transporter is available, send via SMTP
   if (isEmailEnabled()) {
     const transporter = getTransporter();
@@ -473,7 +488,7 @@ export const sendLaptopReturnedEmail = async ({ allocation, recipient, asset, re
           html: htmlContent,
         });
 
-        console.log(`\n✓ [EMAIL_DISPATCHED] Return clearance sent to ${payload.recipientEmail} (MessageID: ${info.messageId})`);
+        console.log("Email notification sent to Faculty:", payload.recipientEmail);
         return {
           sent: true,
           status: 'SENT',
@@ -483,7 +498,7 @@ export const sendLaptopReturnedEmail = async ({ allocation, recipient, asset, re
           timestamp: new Date().toISOString(),
         };
       } catch (sendErr) {
-        console.error('SMTP Delivery Error (Laptop Returned):', sendErr.message);
+        console.error("Failed to send email to Faculty:", payload.recipientEmail, sendErr.message);
       }
     }
   }
