@@ -3,6 +3,8 @@ import { api } from '../services/api';
 import { StatCard } from '../components/common/StatCard';
 import { Badge } from '../components/common/Badge';
 import { AllocateModal } from '../components/allocation/AllocateModal';
+import { ReturnModal } from '../components/allocation/ReturnModal';
+import { QuickReturnModal } from '../components/allocation/QuickReturnModal';
 import { ReceiptModal } from '../components/allocation/ReceiptModal';
 import { CustomSelect } from '../components/common/CustomSelect';
 import { useAuth } from '../context/AuthContext';
@@ -31,6 +33,7 @@ export const Dashboard = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [allocateOpen, setAllocateOpen] = useState(false);
+  const [returnOpen, setReturnOpen] = useState(false);
   const [activeReceipt, setActiveReceipt] = useState(null);
   const [departments, setDepartments] = useState([]);
   const [departmentId, setDepartmentId] = useState('');
@@ -123,6 +126,13 @@ export const Dashboard = () => {
             >
               <PlusCircle className="w-4 h-4" />
               <span>+ Issue / Allocate Laptop</span>
+            </button>
+            <button
+              onClick={() => setReturnOpen(true)}
+              className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-500/25 flex items-center space-x-2 transition active:scale-95"
+            >
+              <RotateCcw className="w-4 h-4" />
+              <span>Return / Submit Laptop</span>
             </button>
             <button
               onClick={() => navigate('/inventory')}
@@ -268,8 +278,9 @@ export const Dashboard = () => {
               return (
                 <div
                   key={dept.code || dept.name}
-                  onClick={() => navigate(`/inventory`)}
+                  onClick={() => navigate(dept.id ? `/inventory?departmentId=${dept.id}` : '/inventory')}
                   className="p-3.5 rounded-xl bg-white border border-slate-200/90 shadow-2xs hover:border-slate-300 hover:shadow-xs cursor-pointer transition-all duration-150 flex flex-col justify-between"
+                  title={`View ${dept.name} laptops in inventory`}
                 >
                   <div className="flex justify-between items-start gap-2">
                     <span className="font-mono text-xs font-extrabold text-[#F26522] bg-orange-50 px-2.5 py-0.5 rounded-md border border-orange-200/80 tracking-wide">
@@ -306,7 +317,12 @@ export const Dashboard = () => {
                 const count = cond._count.condition;
                 const pct = metrics.total > 0 ? Math.round((count / metrics.total) * 100) : 0;
                 return (
-                  <div key={cond.condition} className="space-y-1">
+                  <div
+                    key={cond.condition}
+                    onClick={() => navigate(`/inventory?condition=${cond.condition}`)}
+                    className="space-y-1 p-1 rounded-lg hover:bg-slate-50 cursor-pointer transition"
+                    title={`Filter inventory by ${cond.condition} condition`}
+                  >
                     <div className="flex justify-between text-xs font-semibold">
                       <Badge status={cond.condition} size="xs" />
                       <span className="text-slate-600 font-mono text-[11px]">{count} units ({pct}%)</span>
@@ -367,7 +383,12 @@ export const Dashboard = () => {
 
           <div className="divide-y divide-slate-100">
             {recentAllocations.map((alloc) => (
-              <div key={alloc.id} className="py-2.5 flex items-center justify-between hover:bg-slate-50 px-2 rounded-lg transition">
+              <div
+                key={alloc.id}
+                onClick={() => navigate(`/allocations?search=${encodeURIComponent(alloc.asset.assetTag)}`)}
+                className="py-2.5 flex items-center justify-between hover:bg-slate-50 px-2 rounded-lg transition cursor-pointer"
+                title={`View allocation record for ${alloc.asset.assetTag}`}
+              >
                 <div className="flex items-center space-x-3">
                   <div className="w-8 h-8 rounded-lg bg-orange-50 text-[#F26522] flex items-center justify-center font-bold text-xs border border-orange-100">
                     <Laptop className="w-4 h-4" />
@@ -400,7 +421,6 @@ export const Dashboard = () => {
               Hardware Maintenance & Upgrades
             </h2>
             <button
-
               onClick={() => navigate('/maintenance')}
               className="text-xs font-bold text-[#F26522] hover:underline flex items-center space-x-1"
             >
@@ -411,7 +431,12 @@ export const Dashboard = () => {
 
           <div className="divide-y divide-slate-100">
             {recentMaintenance.map((m) => (
-              <div key={m.id} className="py-2.5 flex items-center justify-between hover:bg-slate-50 px-2 rounded-lg transition">
+              <div
+                key={m.id}
+                onClick={() => navigate(`/maintenance?search=${encodeURIComponent(m.asset.assetTag)}`)}
+                className="py-2.5 flex items-center justify-between hover:bg-slate-50 px-2 rounded-lg transition cursor-pointer"
+                title={`View maintenance history for ${m.asset.assetTag}`}
+              >
                 <div className="flex items-center space-x-3">
                   <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center font-bold text-xs border border-rose-100">
                     <Wrench className="w-4 h-4" />
@@ -445,6 +470,18 @@ export const Dashboard = () => {
         isOpen={allocateOpen}
         onClose={() => setAllocateOpen(false)}
         onSuccess={handleAllocationSuccess}
+      />
+
+      {/* Direct Quick Return & Physical Inspection Modal */}
+      <QuickReturnModal
+        isOpen={returnOpen}
+        onClose={() => setReturnOpen(false)}
+        onSuccess={(returnedAllocation) => {
+          fetchStats();
+        }}
+        onOpenReceipt={(returnedAllocation) => {
+          setActiveReceipt(returnedAllocation);
+        }}
       />
 
       {/* Receipt Modal with Print & PDF download */}

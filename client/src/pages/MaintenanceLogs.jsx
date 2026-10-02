@@ -128,6 +128,12 @@ export const MaintenanceLogs = () => {
           value={`₹${parseFloat(totalCost).toLocaleString('en-IN')}`}
           icon={IndianRupee}
           color="red"
+          subtitle="Cumulative Campus Repair Costs"
+          onClick={() => {
+            setSearch('');
+            setType('');
+            setPage(1);
+          }}
         />
 
         <StatCard
@@ -135,6 +141,13 @@ export const MaintenanceLogs = () => {
           value={logs.length}
           icon={Cpu}
           color="blue"
+          active={Boolean(search || type)}
+          subtitle={search || type ? "Click to clear active filters" : "Showing all records"}
+          onClick={() => {
+            setSearch('');
+            setType('');
+            setPage(1);
+          }}
         />
       </div>
 

@@ -210,6 +210,8 @@ export const Donors = () => {
           value={stats.totalDonatedLaptops}
           icon={Gift}
           color="purple"
+          subtitle="View in Inventory"
+          onClick={() => navigate('/inventory?isDonated=true')}
         />
 
         <StatCard
@@ -217,6 +219,8 @@ export const Donors = () => {
           value={stats.totalPurchasedLaptops}
           icon={Building2}
           color="orange"
+          subtitle="View in Inventory"
+          onClick={() => navigate('/inventory?isDonated=false')}
         />
 
         <StatCard
@@ -224,6 +228,11 @@ export const Donors = () => {
           value={stats.totalDonors}
           icon={HeartHandshake}
           color="green"
+          subtitle="Active Contributors"
+          onClick={() => {
+            setSearch('');
+            setPage(1);
+          }}
         />
 
         <StatCard
@@ -231,6 +240,8 @@ export const Donors = () => {
           value={stats.totalLaptops}
           icon={Laptop}
           color="blue"
+          subtitle="All Campus Laptops"
+          onClick={() => navigate('/inventory')}
         />
       </div>
 

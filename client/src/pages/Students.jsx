@@ -424,6 +424,14 @@ export const Students = ({ hideTitle = false }) => {
           value={metrics.totalActiveStudents || 0}
           icon={Users}
           color="blue"
+          active={custodyStatus === 'ALL' && feeStatus === 'ALL' && !departmentId && !search}
+          onClick={() => {
+            setCustodyStatus('ALL');
+            setFeeStatus('ALL');
+            setDepartmentId('');
+            setSearch('');
+            setPagination((p) => ({ ...p, page: 1 }));
+          }}
         />
 
         <StatCard

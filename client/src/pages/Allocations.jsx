@@ -5,6 +5,7 @@ import { StatCard } from '../components/common/StatCard';
 import { Pagination } from '../components/common/Pagination';
 import { ColumnVisibilitySelector } from '../components/common/ColumnVisibilitySelector';
 import { ReturnModal } from '../components/allocation/ReturnModal';
+import { QuickReturnModal } from '../components/allocation/QuickReturnModal';
 import { ReceiptModal } from '../components/allocation/ReceiptModal';
 import { CustomSelect } from '../components/common/CustomSelect';
 import { useAuth } from '../context/AuthContext';
@@ -25,6 +26,7 @@ import {
   AlertTriangle,
   Calendar,
   Filter,
+  Mail,
 } from 'lucide-react';
 
 const ALLOCATION_COLUMNS = [
@@ -75,11 +77,26 @@ export const Allocations = () => {
 
   // Modal states for return handover and PDF receipt preview
   const [returnAlloc, setReturnAlloc] = useState(null);
+  const [quickReturnOpen, setQuickReturnOpen] = useState(false);
   const [receiptAlloc, setReceiptAlloc] = useState(null);
+  const [emailSendingId, setEmailSendingId] = useState(null);
 
   const debouncedSearch = useDebounce(search, 300);
   const { isStaff } = useAuth();
   const navigate = useNavigate();
+
+  // On-demand send email receipt
+  const handleSendEmail = async (alloc) => {
+    setEmailSendingId(alloc.id);
+    try {
+      const res = await api.post(`/allocations/${alloc.id}/send-email`);
+      alert(res.data.message || `Receipt email dispatched to ${alloc.recipient?.email || 'recipient'}`);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to dispatch receipt email.');
+    } finally {
+      setEmailSendingId(null);
+    }
+  };
 
   // Load department options for filter dropdown
   useEffect(() => {
@@ -219,6 +236,16 @@ export const Allocations = () => {
             <Download className="w-4 h-4 text-emerald-600" />
             <span>Export Excel</span>
           </button>
+
+          {isStaff && (
+            <button
+              onClick={() => setQuickReturnOpen(true)}
+              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center space-x-1.5 transition shadow-2xs"
+            >
+              <RotateCcw className="w-4 h-4" />
+              <span>Return / Submit Desk</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -576,6 +603,17 @@ export const Allocations = () => {
                               <span>Receipt</span>
                             </button>
 
+                            {/* Email Receipt on demand */}
+                            <button
+                              onClick={() => handleSendEmail(alloc)}
+                              disabled={emailSendingId === alloc.id}
+                              title={`Send Auto-Email Receipt to ${alloc.recipient?.email || 'recipient'}`}
+                              className="px-2 py-1 text-[11px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition flex items-center space-x-1 disabled:opacity-50"
+                            >
+                              <Mail className="w-3 h-3 text-blue-600" />
+                              <span>{emailSendingId === alloc.id ? 'Sending...' : 'Email'}</span>
+                            </button>
+
                             {/* Accept Return (Staff only) */}
                             {isStaff && isActive && (
                               <button
@@ -669,12 +707,18 @@ export const Allocations = () => {
         </div>
       )}
 
-      {/* Return Modal */}
-      <ReturnModal
-        isOpen={!!returnAlloc}
-        onClose={() => setReturnAlloc(null)}
-        allocation={returnAlloc}
-        onSuccess={() => fetchAllocations()}
+      {/* Return Modal (Direct Quick Return & Inspection Desk) */}
+      <QuickReturnModal
+        isOpen={Boolean(returnAlloc) || quickReturnOpen}
+        initialAllocation={returnAlloc}
+        onClose={() => {
+          setReturnAlloc(null);
+          setQuickReturnOpen(false);
+        }}
+        onSuccess={() => {
+          fetchAllocations();
+        }}
+        onOpenReceipt={(alloc) => setReceiptAlloc(alloc)}
       />
 
       {/* Receipt Modal */}

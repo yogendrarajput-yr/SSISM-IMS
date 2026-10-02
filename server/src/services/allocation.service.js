@@ -471,3 +471,36 @@ export const deleteAllocation = async (allocationId, actorId, ipAddress) => {
   return { message: 'Allocation record deleted successfully from database.' };
 };
 
+/**
+ * Dispatch or re-send email receipt for an allocation on demand.
+ */
+export const dispatchAllocationEmailReceipt = async (allocationId, actor) => {
+  const allocation = await getAllocationReceiptData(allocationId);
+
+  let result;
+  if (allocation.status === 'RETURNED') {
+    result = await SEND_LAPTOP_RETURNED_EMAIL({
+      allocation,
+      recipient: allocation.recipient,
+      asset: allocation.asset,
+      returnedBy: allocation.returnedBy || actor,
+    });
+  } else {
+    result = await SEND_LAPTOP_ISSUED_EMAIL({
+      allocation,
+      recipient: allocation.recipient,
+      asset: allocation.asset,
+      issuedBy: allocation.issuedBy || actor,
+    });
+  }
+
+  return {
+    ...result,
+    allocationId: allocation.id,
+    assetTag: allocation.asset?.assetTag,
+    recipientEmail: allocation.recipient?.email,
+    recipientName: allocation.recipient?.name,
+    status: allocation.status,
+  };
+};
+

@@ -403,6 +403,13 @@ export const StaffDirectory = ({ hideTitle = false }) => {
           value={metrics.totalStaff || 0}
           icon={UserCheck}
           color="blue"
+          active={custodyStatus === 'ALL' && !departmentId && !search}
+          onClick={() => {
+            setCustodyStatus('ALL');
+            setDepartmentId('');
+            setSearch('');
+            setPagination((p) => ({ ...p, page: 1 }));
+          }}
         />
 
         <StatCard
@@ -422,6 +429,15 @@ export const StaffDirectory = ({ hideTitle = false }) => {
           value={departments.length}
           icon={Building}
           color="purple"
+          active={Boolean(departmentId)}
+          onClick={() => {
+            if (departmentId) {
+              setDepartmentId('');
+            } else if (departments.length > 0) {
+              setDepartmentId(String(departments[0].id));
+            }
+            setPagination((p) => ({ ...p, page: 1 }));
+          }}
         />
       </div>
 

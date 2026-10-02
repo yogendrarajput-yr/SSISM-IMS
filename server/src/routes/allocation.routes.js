@@ -4,6 +4,7 @@ import {
   createAllocation,
   returnAllocation,
   getReceipt,
+  sendEmailReceipt,
   deleteAllocation,
 } from '../controllers/allocation.controller.js';
 import { authenticate } from '../middlewares/auth.middleware.js';
@@ -22,6 +23,7 @@ router.use(authenticate);
 
 router.get('/', getAllocations);
 router.get('/:id/receipt', getReceipt);
+router.post('/:id/send-email', authorizeRoles('SUPER_ADMIN', 'STAFF'), sendEmailReceipt);
 
 // Staff & Super Admin can allocate, accept returns, and delete records
 router.post('/', authorizeRoles('SUPER_ADMIN', 'STAFF'), validate(createAllocationSchema), createAllocation);

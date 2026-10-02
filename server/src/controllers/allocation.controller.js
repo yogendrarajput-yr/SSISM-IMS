@@ -88,4 +88,22 @@ export const deleteAllocation = async (req, res, next) => {
   }
 };
 
+/**
+ * Controller: Manually dispatch or re-send email receipt to recipient.
+ */
+export const sendEmailReceipt = async (req, res, next) => {
+  try {
+    const result = await allocationService.dispatchAllocationEmailReceipt(req.params.id, req.user);
+    res.status(200).json({
+      success: true,
+      message: result.sent
+        ? `Receipt successfully emailed to ${result.recipientEmail}`
+        : `Email receipt notification processed for ${result.recipientName}`,
+      data: result,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 
