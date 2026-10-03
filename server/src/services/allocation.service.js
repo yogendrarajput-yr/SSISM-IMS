@@ -24,16 +24,45 @@ export const getAllocationsList = async ({
   search = '',
   startDate,
   endDate,
+  dueRange,
 }) => {
-
   const skip = (Number(page) - 1) * Number(limit);
   const where = {};
+  const andConditions = [];
+
+  const now = new Date();
+  const in7Days = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const in30Days = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
   if (status === 'OVERDUE') {
     where.status = 'ACTIVE';
-    where.dueDate = { lt: new Date() };
+    andConditions.push({
+      OR: [
+        { expectedReturnDate: { lt: now } },
+        { expectedReturnDate: null, dueDate: { lt: now } },
+      ],
+    });
   } else if (status) {
     where.status = status;
+  }
+
+  // Filter by expectedReturnDate / dueDate range
+  if (dueRange === '7_DAYS') {
+    where.status = 'ACTIVE';
+    andConditions.push({
+      OR: [
+        { expectedReturnDate: { gte: now, lte: in7Days } },
+        { expectedReturnDate: null, dueDate: { gte: now, lte: in7Days } },
+      ],
+    });
+  } else if (dueRange === '30_DAYS') {
+    where.status = 'ACTIVE';
+    andConditions.push({
+      OR: [
+        { expectedReturnDate: { gte: now, lte: in30Days } },
+        { expectedReturnDate: null, dueDate: { gte: now, lte: in30Days } },
+      ],
+    });
   }
 
   if (departmentId) {
@@ -51,12 +80,18 @@ export const getAllocationsList = async ({
   }
 
   if (search) {
-    where.OR = [
-      { asset: { assetTag: { contains: search } } },
-      { asset: { serialNumber: { contains: search } } },
-      { recipient: { name: { contains: search } } },
-      { recipient: { rollNumberOrEmpId: { contains: search } } },
-    ];
+    andConditions.push({
+      OR: [
+        { asset: { assetTag: { contains: search } } },
+        { asset: { serialNumber: { contains: search } } },
+        { recipient: { name: { contains: search } } },
+        { recipient: { rollNumberOrEmpId: { contains: search } } },
+      ],
+    });
+  }
+
+  if (andConditions.length > 0) {
+    where.AND = andConditions;
   }
 
   const [
@@ -66,12 +101,17 @@ export const getAllocationsList = async ({
     activeCount,
     returnedCount,
     overdueCount,
+    dueThisWeekCount,
+    dueThisMonthCount,
   ] = await Promise.all([
     prisma.allocation.findMany({
       where,
       skip,
       take: Number(limit),
-      orderBy: { issuedAt: 'desc' },
+      orderBy: [
+        { expectedReturnDate: 'asc' },
+        { issuedAt: 'desc' },
+      ],
       include: {
         asset: {
           select: {
@@ -114,7 +154,28 @@ export const getAllocationsList = async ({
     prisma.allocation.count({
       where: {
         status: 'ACTIVE',
-        dueDate: { lt: new Date() },
+        OR: [
+          { expectedReturnDate: { lt: now } },
+          { expectedReturnDate: null, dueDate: { lt: now } },
+        ],
+      },
+    }),
+    prisma.allocation.count({
+      where: {
+        status: 'ACTIVE',
+        OR: [
+          { expectedReturnDate: { gte: now, lte: in7Days } },
+          { expectedReturnDate: null, dueDate: { gte: now, lte: in7Days } },
+        ],
+      },
+    }),
+    prisma.allocation.count({
+      where: {
+        status: 'ACTIVE',
+        OR: [
+          { expectedReturnDate: { gte: now, lte: in30Days } },
+          { expectedReturnDate: null, dueDate: { gte: now, lte: in30Days } },
+        ],
       },
     }),
   ]);
@@ -126,6 +187,8 @@ export const getAllocationsList = async ({
       active: activeCount,
       returned: returnedCount,
       overdue: overdueCount,
+      dueThisWeek: dueThisWeekCount,
+      dueThisMonth: dueThisMonthCount,
     },
     pagination: {
       total,
@@ -144,6 +207,7 @@ export const createAllocation = async ({
   assetId,
   recipientId,
   dueDate,
+  expectedReturnDate,
   issueCondition = 'GOOD',
   notes = null,
   overrideUnpaidFeeWarning = false,
@@ -225,6 +289,10 @@ export const createAllocation = async ({
       );
     }
 
+    const returnDateValue = expectedReturnDate
+      ? new Date(expectedReturnDate)
+      : (dueDate ? new Date(dueDate) : null);
+
     // 5. Create Allocation Record
     const allocation = await tx.allocation.create({
       data: {
@@ -232,7 +300,8 @@ export const createAllocation = async ({
         recipientId: parsedRecipientId,
         issuedById,
         issuedAt: new Date(),
-        dueDate: dueDate ? new Date(dueDate) : null,
+        dueDate: returnDateValue,
+        expectedReturnDate: returnDateValue,
         issueCondition,
         status: 'ACTIVE',
         notes,

@@ -1,3 +1,5 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -8,6 +10,9 @@ import routes from './routes/index.js';
 import { apiRateLimiter } from './middlewares/rateLimiter.middleware.js';
 import { errorHandler } from './middlewares/error.middleware.js';
 import { AppError } from './utils/appError.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Express Application Configuration for SSISM IMS
@@ -21,7 +26,6 @@ import { AppError } from './utils/appError.js';
  */
 const app = express();
 
-
 // Security HTTP headers
 app.use(
   helmet({
@@ -29,6 +33,10 @@ app.use(
     crossOriginResourcePolicy: { policy: 'cross-origin' },
   })
 );
+
+// Serve static assets (official college logos, icons)
+app.use('/public', express.static(path.join(__dirname, '../../client/public')));
+app.use('/Logo', express.static(path.join(__dirname, '../../client/public/Logo')));
 
 // Logging
 if (config.nodeEnv !== 'test') {

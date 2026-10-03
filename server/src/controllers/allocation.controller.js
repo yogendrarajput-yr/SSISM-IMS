@@ -50,7 +50,12 @@ export const createAllocation = async (req, res, next) => {
         chargerSerial: asset.chargerSerial,
         issuedBy: allocation.issuedBy?.name,
         issueDate: allocation.issuedAt ? new Date(allocation.issuedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : undefined,
-        dueDate: allocation.dueDate ? new Date(allocation.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : undefined,
+        expectedReturnDate: (allocation.expectedReturnDate || allocation.dueDate)
+          ? new Date(allocation.expectedReturnDate || allocation.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+          : undefined,
+        dueDate: (allocation.expectedReturnDate || allocation.dueDate)
+          ? new Date(allocation.expectedReturnDate || allocation.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+          : undefined,
         userRole,
         notes: allocation.notes,
       }).catch((err) => {

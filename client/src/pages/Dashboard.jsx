@@ -22,6 +22,8 @@ import {
   CreditCard,
   Filter,
   RotateCcw,
+  Calendar,
+  AlertTriangle,
 } from 'lucide-react';
 
 /**
@@ -34,6 +36,8 @@ export const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [allocateOpen, setAllocateOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
+  const [selectedReturnAlloc, setSelectedReturnAlloc] = useState(null);
+  const [dueRangeFilter, setDueRangeFilter] = useState('7_DAYS');
   const [activeReceipt, setActiveReceipt] = useState(null);
   const [departments, setDepartments] = useState([]);
   const [departmentId, setDepartmentId] = useState('');
@@ -104,6 +108,19 @@ export const Dashboard = () => {
   const unpaidFees = feeStats.find((f) => f.status === 'UNPAID')?._count?.status || 0;
   const totalFees = paidFees + unpaidFees;
   const clearanceRate = totalFees > 0 ? Math.round((paidFees / totalFees) * 100) : 100;
+
+  const upcomingReturns = data?.upcomingReturns || [];
+  const nowMs = Date.now();
+  const filteredReturns = upcomingReturns.filter((item) => {
+    const returnDate = item.expectedReturnDate || item.dueDate;
+    if (!returnDate) return false;
+    const dueTime = new Date(returnDate).getTime();
+    const diffDays = Math.ceil((dueTime - nowMs) / (1000 * 60 * 60 * 24));
+    if (dueRangeFilter === '7_DAYS') {
+      return diffDays <= 7;
+    }
+    return diffDays <= 30;
+  });
 
   return (
     <div className="space-y-6">
@@ -241,6 +258,228 @@ export const Dashboard = () => {
           color="red"
           onClick={() => navigate('/maintenance')}
         />
+      </div>
+
+      {/* Return Tracking & Due Surveillance Section */}
+      <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3.5">
+          <div className="flex items-center space-x-2.5">
+            <div className="w-8 h-8 rounded-lg bg-orange-50 text-[#D9531E] border border-orange-200 flex items-center justify-center font-bold">
+              <Calendar className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-sm font-extrabold text-slate-900 tracking-tight">
+                Asset Return Schedule & Surveillance
+              </h2>
+              <p className="text-[11px] text-slate-500 font-medium">
+                Live monitoring of assets scheduled for return based on expected return dates
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <div className="inline-flex rounded-xl bg-slate-100 p-1 space-x-1 text-xs">
+              <button
+                type="button"
+                onClick={() => setDueRangeFilter('7_DAYS')}
+                className={`px-3 py-1 rounded-lg transition font-semibold flex items-center space-x-1.5 ${
+                  dueRangeFilter === '7_DAYS'
+                    ? 'bg-[#D9531E] text-white shadow-2xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span>Due in 7 Days</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                  dueRangeFilter === '7_DAYS' ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'
+                }`}>
+                  {metrics.dueThisWeek || 0}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setDueRangeFilter('30_DAYS')}
+                className={`px-3 py-1 rounded-lg transition flex items-center space-x-1.5 font-semibold ${
+                  dueRangeFilter === '30_DAYS'
+                    ? 'bg-blue-600 text-white shadow-2xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span>Due in 30 Days</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                  dueRangeFilter === '30_DAYS' ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'
+                }`}>
+                  {metrics.dueThisMonth || 0}
+                </span>
+              </button>
+            </div>
+
+            <button
+              onClick={() => navigate(`/allocations?dueRange=${dueRangeFilter}`)}
+              className="text-xs font-bold text-[#D9531E] hover:underline flex items-center space-x-1 pl-2"
+            >
+              <span>View In Ledger</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Dynamic Metric Counter Tiles */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div
+            onClick={() => {
+              setDueRangeFilter('7_DAYS');
+            }}
+            className={`p-3.5 rounded-xl border transition cursor-pointer flex items-center justify-between ${
+              dueRangeFilter === '7_DAYS'
+                ? 'bg-orange-50/60 border-[#D9531E]'
+                : 'bg-slate-50/70 border-slate-200 hover:border-slate-300'
+            }`}
+          >
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-lg bg-orange-100 text-[#D9531E] flex items-center justify-center font-bold">
+                <Calendar className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                  Laptops Due This Week
+                </div>
+                <div className="text-xl font-extrabold text-slate-900">
+                  {metrics.dueThisWeek || 0} <span className="text-xs font-normal text-slate-500">laptops scheduled</span>
+                </div>
+              </div>
+            </div>
+            <span className="text-xs font-bold text-[#D9531E]">
+              {dueRangeFilter === '7_DAYS' ? '● Active View' : 'Filter View →'}
+            </span>
+          </div>
+
+          <div
+            onClick={() => {
+              setDueRangeFilter('30_DAYS');
+            }}
+            className={`p-3.5 rounded-xl border transition cursor-pointer flex items-center justify-between ${
+              dueRangeFilter === '30_DAYS'
+                ? 'bg-blue-50/60 border-blue-500'
+                : 'bg-slate-50/70 border-slate-200 hover:border-slate-300'
+            }`}
+          >
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
+                <Clock className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                  Laptops Due This Month
+                </div>
+                <div className="text-xl font-extrabold text-slate-900">
+                  {metrics.dueThisMonth || 0} <span className="text-xs font-normal text-slate-500">laptops scheduled</span>
+                </div>
+              </div>
+            </div>
+            <span className="text-xs font-bold text-blue-600">
+              {dueRangeFilter === '30_DAYS' ? '● Active View' : 'Filter View →'}
+            </span>
+          </div>
+        </div>
+
+        {/* Filtered Table View of Upcoming Returns */}
+        <div className="border border-slate-200 rounded-xl overflow-hidden">
+          {filteredReturns.length === 0 ? (
+            <div className="p-8 text-center text-slate-400 text-xs font-medium">
+              No laptops scheduled for return in the upcoming {dueRangeFilter === '7_DAYS' ? '7 days' : '30 days'}.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-[10.5px] font-bold uppercase tracking-wider text-slate-500">
+                    <th className="py-2.5 px-3">Laptop Asset</th>
+                    <th className="py-2.5 px-3">Current Holder</th>
+                    <th className="py-2.5 px-3">Role / Dept</th>
+                    <th className="py-2.5 px-3">Expected Return Date</th>
+                    <th className="py-2.5 px-3">Due Status</th>
+                    {isStaff && <th className="py-2.5 px-3 text-right">Quick Action</th>}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs">
+                  {filteredReturns.map((alloc) => {
+                    const returnDate = alloc.expectedReturnDate || alloc.dueDate;
+                    const dueTime = new Date(returnDate).getTime();
+                    const diffDays = Math.ceil((dueTime - nowMs) / (1000 * 60 * 60 * 24));
+                    const isOverdue = diffDays < 0;
+
+                    return (
+                      <tr key={alloc.id} className="hover:bg-orange-50/20 transition-colors">
+                        <td className="py-2.5 px-3 whitespace-nowrap">
+                          <div
+                            onClick={() => navigate(`/inventory/${alloc.asset.id}`)}
+                            className="font-mono font-bold text-[#D9531E] hover:underline cursor-pointer"
+                          >
+                            {alloc.asset.assetTag}
+                          </div>
+                          <div className="text-[10px] text-slate-500">
+                            {alloc.asset.make} {alloc.asset.model}
+                          </div>
+                        </td>
+
+                        <td className="py-2.5 px-3 whitespace-nowrap">
+                          <div className="font-bold text-slate-900">{alloc.recipient.name}</div>
+                          <div className="font-mono text-[10px] text-slate-400">
+                            {alloc.recipient.rollNumberOrEmpId}
+                          </div>
+                        </td>
+
+                        <td className="py-2.5 px-3 whitespace-nowrap text-slate-600">
+                          <div>{alloc.recipient.role}</div>
+                          <div className="text-[10px] text-slate-400">
+                            {alloc.recipient.department?.code || alloc.recipient.department?.name || 'General'}
+                          </div>
+                        </td>
+
+                        <td className="py-2.5 px-3 whitespace-nowrap font-medium text-slate-800">
+                          {new Date(returnDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </td>
+
+                        <td className="py-2.5 px-3 whitespace-nowrap">
+                          {isOverdue ? (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-rose-100 text-rose-700 border border-rose-200">
+                              Overdue by {Math.abs(diffDays)}d
+                            </span>
+                          ) : diffDays === 0 ? (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300">
+                              Due Today
+                            </span>
+                          ) : diffDays <= 7 ? (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-50 text-amber-900 border border-amber-300">
+                              Due in {diffDays} {diffDays === 1 ? 'day' : 'days'}
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                              Due in {diffDays} days
+                            </span>
+                          )}
+                        </td>
+
+                        {isStaff && (
+                          <td className="py-2.5 px-3 whitespace-nowrap text-right">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedReturnAlloc(alloc)}
+                              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] transition shadow-2xs inline-flex items-center space-x-1"
+                            >
+                              <RotateCcw className="w-3 h-3" />
+                              <span>Return Asset</span>
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Section 2: Department Distribution & Physical Condition */}
@@ -483,6 +722,22 @@ export const Dashboard = () => {
           setActiveReceipt(returnedAllocation);
         }}
       />
+
+      {/* Targeted Return Modal for scheduled return asset */}
+      {selectedReturnAlloc && (
+        <ReturnModal
+          isOpen={!!selectedReturnAlloc}
+          onClose={() => setSelectedReturnAlloc(null)}
+          allocation={selectedReturnAlloc}
+          onSuccess={(returnedAllocation) => {
+            setSelectedReturnAlloc(null);
+            fetchStats();
+            if (returnedAllocation) {
+              setActiveReceipt(returnedAllocation);
+            }
+          }}
+        />
+      )}
 
       {/* Receipt Modal with Print & PDF download */}
       <ReceiptModal

@@ -176,7 +176,7 @@ export const Login = () => {
 
         {/* Institutional Campus Footer */}
         <p className="mt-6 text-center text-[11px] text-slate-500 font-medium">
-          Shri Shivaji Institute of Science & Management • Sandalpur Campus
+          Sant Singaji Institute of Science and Management, Sandalpur, Teh - Khategaon, Dist - Dewas, MP
         </p>
       </div>
     </div>

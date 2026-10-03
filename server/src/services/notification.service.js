@@ -111,7 +111,8 @@ export const generateIssueReceiptHtml = (data) => {
 <body>
   <div class="container">
     <div class="header">
-      <h1>SHRI SHIVAJI INSTITUTE OF SCIENCE & MANAGEMENT</h1>
+      <h1>SANT SINGAJI INSTITUTE OF SCIENCE AND MANAGEMENT</h1>
+      <p style="margin: 2px 0 0; font-size: 11px; color: #cbd5e1;">Sandalpur, Teh - Khategaon, Dist - Dewas, MP</p>
       <p>Institutional IT Hardware Custody & Allocation Record</p>
       <div class="receipt-badge">RECEIPT #${data.receiptRef || `REC-ALLOC-${String(data.allocationId).padStart(5, '0')}`}</div>
     </div>
@@ -207,7 +208,8 @@ export const generateIssueReceiptHtml = (data) => {
 
       <div class="terms-box">
         <strong>Institutional Undertaking & Custody Terms:</strong><br>
-        1. This laptop is property of Shri Shivaji Institute of Science & Management (SSISM) assigned exclusively for academic and institutional research use.<br>
+        "Note: You are solely responsible for the physical and technical integrity of the assigned asset during the allocation period. Any physical damage, loss, or unauthorized technical modification will attract appropriate institutional action."<br><br>
+        1. This laptop is property of Sant Singaji Institute of Science and Management (SSISM), Sandalpur, Teh - Khategaon, Dist - Dewas, MP assigned exclusively for academic and institutional research use.<br>
         2. The recipient is responsible for safe custody and reasonable care. Any hardware damage, cracked display, missing charger, or loss must be reported immediately to the IT Desk.<br>
         3. The asset must be presented for mandatory physical audits and surrendered upon semester completion, graduation, or administrative recall.
       </div>
@@ -258,7 +260,8 @@ export const generateReturnClearanceHtml = (data) => {
 <body>
   <div class="container">
     <div class="header">
-      <h1>SHRI SHIVAJI INSTITUTE OF SCIENCE & MANAGEMENT</h1>
+      <h1>SANT SINGAJI INSTITUTE OF SCIENCE AND MANAGEMENT</h1>
+      <p style="margin: 2px 0 0; font-size: 11px; color: #a7f3d0;">Sandalpur, Teh - Khategaon, Dist - Dewas, MP</p>
       <p>IT Hardware Asset Return & Clearance Certificate</p>
       <div class="clearance-badge">CERTIFICATE #${data.clearanceRef || `REC-CLEAR-${String(data.allocationId).padStart(5, '0')}`}</div>
     </div>
@@ -330,7 +333,7 @@ export const generateReturnClearanceHtml = (data) => {
     </div>
 
     <div class="footer">
-      Official IT Hardware Surrender Receipt • Shri Shivaji Institute of Science & Management (SSISM)<br>
+      Official IT Hardware Surrender Receipt • Sant Singaji Institute of Science and Management, Sandalpur, Teh - Khategaon, Dist - Dewas, MP<br>
       System generated record with digital audit log verification.
     </div>
   </div>

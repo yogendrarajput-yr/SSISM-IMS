@@ -29,7 +29,8 @@ export const AllocateModal = ({ isOpen, onClose, selectedAsset = null, onSuccess
   const [recipients, setRecipients] = useState([]);
   const [assetId, setAssetId] = useState(selectedAsset?.id || '');
   const [recipientId, setRecipientId] = useState('');
-  const [dueDate, setDueDate] = useState('');
+  const [hasExpectedReturnDate, setHasExpectedReturnDate] = useState(false);
+  const [expectedReturnDate, setExpectedReturnDate] = useState('');
   const [issueCondition, setIssueCondition] = useState('GOOD');
   const [notes, setNotes] = useState('');
   const [overrideWarning, setOverrideWarning] = useState(false);
@@ -57,9 +58,10 @@ export const AllocateModal = ({ isOpen, onClose, selectedAsset = null, onSuccess
       setRecipientSearch('');
       setAssetSearch('');
 
-      // Default due date: 180 days from now (1 semester duration)
+      // Keep Expected Return Date DISABLED by default
+      setHasExpectedReturnDate(false);
       const defaultDue = new Date(Date.now() + 180 * 86400000).toISOString().split('T')[0];
-      setDueDate(defaultDue);
+      setExpectedReturnDate(defaultDue);
 
       loadData();
     }
@@ -200,10 +202,12 @@ export const AllocateModal = ({ isOpen, onClose, selectedAsset = null, onSuccess
     setError(null);
 
     try {
+      const finalReturnDate = (hasExpectedReturnDate && expectedReturnDate) ? expectedReturnDate : null;
       const payload = {
         assetId: Number(assetId),
         recipientId: Number(recipientId),
-        dueDate: dueDate || null,
+        expectedReturnDate: finalReturnDate,
+        dueDate: finalReturnDate,
         issueCondition,
         notes: notes || null,
         overrideUnpaidFeeWarning: overrideWarning,
@@ -292,7 +296,7 @@ export const AllocateModal = ({ isOpen, onClose, selectedAsset = null, onSuccess
               <button
                 type="button"
                 onClick={() => setQuickCreateOpen(true)}
-                className="inline-flex items-center space-x-1 px-2.5 py-1 text-xs font-bold text-[#F26522] bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-lg transition"
+                className="inline-flex items-center space-x-1 px-2.5 py-1 text-xs font-bold text-[#D9531E] bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-lg transition"
               >
                 <UserPlus className="w-3.5 h-3.5" />
                 <span>+ Add New Student/Employee</span>
@@ -381,28 +385,52 @@ export const AllocateModal = ({ isOpen, onClose, selectedAsset = null, onSuccess
             </div>
           )}
 
-          {/* 3. Due Date & Condition */}
+          {/* 3. Expected Return Date & Condition */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                Scheduled Return Due Date
-              </label>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                  Expected Return Date
+                </label>
+                <label className="inline-flex items-center space-x-1.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={hasExpectedReturnDate}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setHasExpectedReturnDate(checked);
+                      if (checked && !expectedReturnDate) {
+                        const defaultDue = new Date(Date.now() + 180 * 86400000).toISOString().split('T')[0];
+                        setExpectedReturnDate(defaultDue);
+                      }
+                    }}
+                    className="w-4 h-4 text-[#D9531E] rounded border-slate-300 focus:ring-[#D9531E]"
+                  />
+                  <span className="text-xs font-semibold text-slate-700">Set Expected Return Date</span>
+                </label>
+              </div>
               <input
                 type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 text-xs outline-none text-slate-800"
+                disabled={!hasExpectedReturnDate}
+                value={hasExpectedReturnDate ? expectedReturnDate : ''}
+                onChange={(e) => setExpectedReturnDate(e.target.value)}
+                className="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:border-[#D9531E] focus:ring-2 focus:ring-[#D9531E]/20 text-xs outline-none text-slate-800 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed transition"
               />
+              <p className="text-[11px] text-slate-400">
+                {hasExpectedReturnDate
+                  ? 'Scheduled return timeline enabled.'
+                  : 'Date picker disabled by default. Check box above to configure return date.'}
+              </p>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
                 Handover Physical Condition
               </label>
               <select
                 value={issueCondition}
                 onChange={(e) => setIssueCondition(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 text-xs outline-none text-slate-800 bg-white"
+                className="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:border-[#D9531E] focus:ring-2 focus:ring-[#D9531E]/20 text-xs outline-none text-slate-800 bg-white"
               >
                 <option value="BRAND_NEW">Brand New</option>
                 <option value="GOOD">Good / Tested</option>
@@ -443,7 +471,7 @@ export const AllocateModal = ({ isOpen, onClose, selectedAsset = null, onSuccess
             <button
               type="submit"
               disabled={loading || (feeWarning && !overrideWarning)}
-              className="px-5 py-2 text-xs font-bold text-white bg-[#F26522] hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-xs transition flex items-center space-x-2"
+              className="px-5 py-2 text-xs font-bold text-white bg-[#D9531E] hover:bg-[#b83e0e] disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-xs transition flex items-center space-x-2"
             >
               {loading ? 'Allocating...' : '+ Issue Asset'}
             </button>

@@ -47,9 +47,12 @@ export const ReceiptModal = ({ isOpen, onClose, allocation }) => {
           {/* Header */}
           <div className="text-center border-b border-slate-200 pb-4">
             <h2 className="text-base font-extrabold text-slate-900 uppercase tracking-wide">
-              SHRI SHIVAJI INSTITUTE OF SCIENCE & MANAGEMENT
+              Sant Singaji Institute of Science and Management
             </h2>
-            <p className="text-xs font-semibold text-brand-600 uppercase tracking-wider mt-0.5">
+            <p className="text-[11px] font-medium text-slate-500">
+              Sandalpur, Teh - Khategaon, Dist - Dewas, MP
+            </p>
+            <p className="text-xs font-semibold text-[#D9531E] uppercase tracking-wider mt-0.5">
               IT Infrastructure & Laptop Allocation Receipt
             </p>
             <div className="flex justify-between items-center text-xs text-slate-500 mt-3 pt-2 border-t border-slate-100">
@@ -100,12 +103,13 @@ export const ReceiptModal = ({ isOpen, onClose, allocation }) => {
             </div>
           )}
 
-          {/* Undertaking terms */}
-          <div className="p-3 rounded-xl bg-amber-50/60 border border-amber-200/60 text-[11px] text-amber-900 space-y-1">
-            <div className="font-bold">Institutional Undertaking:</div>
-            <p>
-              The recipient acknowledges receipt of the hardware in verified working order and accepts liability
-              under the college IT hardware asset policy. Must be surrendered upon semester completion or recall.
+          {/* Mandatory Institutional Liability Undertaking */}
+          <div className="p-3.5 rounded-xl bg-orange-50/70 border border-[#D9531E]/30 text-xs text-[#2C3E50] space-y-1">
+            <div className="font-bold text-[#D9531E] uppercase text-[10.5px] tracking-wider">
+              Institutional Liability Undertaking:
+            </div>
+            <p className="leading-relaxed font-medium">
+              Note: You are solely responsible for the physical and technical integrity of the assigned asset during the allocation period. Any physical damage, loss, or unauthorized technical modification will attract appropriate institutional action.
             </p>
           </div>
 

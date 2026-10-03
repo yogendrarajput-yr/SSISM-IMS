@@ -423,18 +423,23 @@ export const generateReceiptPDF = async (allocationId, res) => {
 
   doc
     .fillColor('#FFFFFF')
-    .fontSize(18)
+    .fontSize(15)
     .font('Helvetica-Bold')
-    .text('SHRI SHIVAJI INSTITUTE OF SCIENCE & MANAGEMENT', 45, 52, { align: 'center' });
+    .text('Sant Singaji Institute of Science and Management', 45, 48, { align: 'center' });
 
   doc
-    .fontSize(10)
+    .fontSize(8.5)
     .font('Helvetica')
-    .text('CAMPUS ASSET & LAPTOP ALLOCATION RECEIPT', 45, 76, { align: 'center' });
+    .text('Sandalpur, Teh - Khategaon, Dist - Dewas, MP', 45, 66, { align: 'center' });
+
+  doc
+    .fontSize(9.5)
+    .font('Helvetica-Bold')
+    .text('CAMPUS ASSET & LAPTOP ALLOCATION RECEIPT', 45, 80, { align: 'center' });
 
   doc
     .fontSize(8)
-    .text('IT System Administration & Infrastructure Department', 45, 90, { align: 'center' });
+    .text('IT System Administration & Infrastructure Department', 45, 93, { align: 'center' });
 
   doc.moveDown(2);
 

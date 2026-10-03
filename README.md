@@ -1,6 +1,6 @@
 # SSISM IMS: College Asset & Inventory Management System
 
-A scalable, secure, and modular full-stack web application designed for **Shri Shivaji Institute of Science & Management (SSISM)** to replace spreadsheet-based asset tracking. Built to manage 400+ campus laptops, lifecycle allocations, hardware upgrades, and software license fee clearance with zero-conflict concurrency control.
+A scalable, secure, and modular full-stack web application designed for **Sant Singaji Institute of Science and Management (SSISM), Sandalpur, Teh - Khategaon, Dist - Dewas, MP** to replace spreadsheet-based asset tracking. Built to manage 400+ campus laptops, lifecycle allocations, hardware upgrades, and software license fee clearance with zero-conflict concurrency control.
 
 ---
 

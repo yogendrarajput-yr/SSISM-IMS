@@ -54,11 +54,19 @@ export const Allocations = () => {
   const [departments, setDepartments] = useState([]);
 
   // Metrics summary
-  const [metrics, setMetrics] = useState({ total: 0, active: 0, returned: 0, overdue: 0 });
+  const [metrics, setMetrics] = useState({
+    total: 0,
+    active: 0,
+    returned: 0,
+    overdue: 0,
+    dueThisWeek: 0,
+    dueThisMonth: 0,
+  });
 
   // Filter, pagination & column state
   const [search, setSearch] = useState(searchParams.get('search') || '');
   const [status, setStatus] = useState(searchParams.get('status') || '');
+  const [dueRange, setDueRange] = useState(searchParams.get('dueRange') || '');
   const [departmentId, setDepartmentId] = useState(searchParams.get('departmentId') || '');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -114,6 +122,7 @@ export const Allocations = () => {
       const params = new URLSearchParams();
       if (debouncedSearch) params.append('search', debouncedSearch);
       if (status) params.append('status', status);
+      if (dueRange) params.append('dueRange', dueRange);
       if (departmentId) params.append('departmentId', departmentId);
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
@@ -135,16 +144,17 @@ export const Allocations = () => {
 
   useEffect(() => {
     fetchAllocations();
-  }, [debouncedSearch, status, departmentId, startDate, endDate, page, limit]);
+  }, [debouncedSearch, status, dueRange, departmentId, startDate, endDate, page, limit]);
 
   // Clear selections when page or filters change
   useEffect(() => {
     setSelectedIds([]);
-  }, [debouncedSearch, status, departmentId, startDate, endDate, page, limit]);
+  }, [debouncedSearch, status, dueRange, departmentId, startDate, endDate, page, limit]);
 
   const handleResetFilters = () => {
     setSearch('');
     setStatus('');
+    setDueRange('');
     setDepartmentId('');
     setStartDate('');
     setEndDate('');
@@ -209,7 +219,7 @@ export const Allocations = () => {
     window.print();
   };
 
-  const hasActiveFilters = Boolean(search || status || departmentId || startDate || endDate);
+  const hasActiveFilters = Boolean(search || status || dueRange || departmentId || startDate || endDate);
 
   return (
     <div className="space-y-6">
@@ -249,43 +259,60 @@ export const Allocations = () => {
         </div>
       </div>
 
-      {/* 4 Top KPI Metric Cards (Unified Master StatCard Design) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* 6 Top KPI Metric Cards (Unified Master StatCard Design with Return Tracking) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
         <StatCard
-          title="Total Allocations"
+          title="Total Issued"
           value={metrics.total}
           icon={ArrowLeftRight}
           color="orange"
-          subtitle="Cumulative Issued"
-          active={status === ''}
+          subtitle="Cumulative Records"
+          active={status === '' && dueRange === ''}
           onClick={() => {
+            setStatus('');
+            setDueRange('');
+            setPage(1);
+          }}
+        />
+
+        <StatCard
+          title="Currently Active"
+          value={metrics.active}
+          icon={Clock}
+          color="green"
+          subtitle="In Active Custody"
+          active={status === 'ACTIVE' && dueRange === ''}
+          onClick={() => {
+            setStatus('ACTIVE');
+            setDueRange('');
+            setPage(1);
+          }}
+        />
+
+        <StatCard
+          title="Laptops Due This Week"
+          value={metrics.dueThisWeek || 0}
+          icon={Calendar}
+          color="orange"
+          subtitle="Upcoming 7 Days"
+          active={dueRange === '7_DAYS'}
+          onClick={() => {
+            setDueRange('7_DAYS');
             setStatus('');
             setPage(1);
           }}
         />
 
         <StatCard
-          title="Currently Outstanding"
-          value={metrics.active}
+          title="Laptops Due This Month"
+          value={metrics.dueThisMonth || 0}
           icon={Clock}
-          color="green"
-          subtitle="In Active Custody"
-          active={status === 'ACTIVE'}
-          onClick={() => {
-            setStatus('ACTIVE');
-            setPage(1);
-          }}
-        />
-
-        <StatCard
-          title="Returned to Stock"
-          value={metrics.returned}
-          icon={CheckCircle2}
           color="blue"
-          subtitle="Safely Restored"
-          active={status === 'RETURNED'}
+          subtitle="Upcoming 30 Days"
+          active={dueRange === '30_DAYS'}
           onClick={() => {
-            setStatus('RETURNED');
+            setDueRange('30_DAYS');
+            setStatus('');
             setPage(1);
           }}
         />
@@ -295,10 +322,25 @@ export const Allocations = () => {
           value={metrics.overdue}
           icon={AlertTriangle}
           color="red"
-          subtitle="Past Return Due Date"
+          subtitle="Past Return Date"
           active={status === 'OVERDUE'}
           onClick={() => {
             setStatus('OVERDUE');
+            setDueRange('');
+            setPage(1);
+          }}
+        />
+
+        <StatCard
+          title="Returned to Stock"
+          value={metrics.returned}
+          icon={CheckCircle2}
+          color="green"
+          subtitle="Safely Restored"
+          active={status === 'RETURNED' && dueRange === ''}
+          onClick={() => {
+            setStatus('RETURNED');
+            setDueRange('');
             setPage(1);
           }}
         />
@@ -358,6 +400,72 @@ export const Allocations = () => {
           />
         </div>
 
+        {/* Quick Return Range Filter Buttons Row */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-slate-700 flex items-center space-x-1">
+              <Filter className="w-3.5 h-3.5 text-[#D9531E]" />
+              <span>Return Due Quick Filter:</span>
+            </span>
+            <div className="inline-flex rounded-xl bg-slate-100 p-1 space-x-1 text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setDueRange('');
+                  setPage(1);
+                }}
+                className={`px-3 py-1 rounded-lg transition font-semibold ${
+                  dueRange === ''
+                    ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                All Records
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDueRange('7_DAYS');
+                  setStatus('');
+                  setPage(1);
+                }}
+                className={`px-3 py-1 rounded-lg transition flex items-center space-x-1.5 font-semibold ${
+                  dueRange === '7_DAYS'
+                    ? 'bg-[#D9531E] text-white shadow-2xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span>Due This Week (7 Days)</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                  dueRange === '7_DAYS' ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'
+                }`}>
+                  {metrics.dueThisWeek || 0}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDueRange('30_DAYS');
+                  setStatus('');
+                  setPage(1);
+                }}
+                className={`px-3 py-1 rounded-lg transition flex items-center space-x-1.5 font-semibold ${
+                  dueRange === '30_DAYS'
+                    ? 'bg-blue-600 text-white shadow-2xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span>Due This Month (30 Days)</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                  dueRange === '30_DAYS' ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'
+                }`}>
+                  {metrics.dueThisMonth || 0}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Date Range Row */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100">
           <div className="flex flex-wrap items-center gap-2.5 text-xs">
@@ -373,7 +481,7 @@ export const Allocations = () => {
                   setStartDate(e.target.value);
                   setPage(1);
                 }}
-                className="px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 text-slate-700 focus:border-[#F26522] outline-none"
+                className="px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 text-slate-700 focus:border-[#D9531E] outline-none"
                 title="From Date"
               />
               <span className="text-slate-400 text-xs">to</span>
@@ -384,7 +492,7 @@ export const Allocations = () => {
                   setEndDate(e.target.value);
                   setPage(1);
                 }}
-                className="px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 text-slate-700 focus:border-[#F26522] outline-none"
+                className="px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 text-slate-700 focus:border-[#D9531E] outline-none"
                 title="To Date"
               />
             </div>
@@ -444,19 +552,27 @@ export const Allocations = () => {
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
                 {allocations.map((alloc) => {
+                  const effectiveDueDate = alloc.expectedReturnDate || alloc.dueDate;
                   const isActive = alloc.status === 'ACTIVE';
-                  const isOverdue =
-                    isActive && alloc.dueDate && new Date(alloc.dueDate) < new Date();
                   const isSelected = selectedIds.includes(alloc.id);
                   const isStudent = alloc.recipient?.role === 'STUDENT';
                   const feeStatus = alloc.recipient?.licenseFeeRecords?.[0]?.status || 'PAID';
 
+                  const nowMs = Date.now();
+                  const dueMs = effectiveDueDate ? new Date(effectiveDueDate).getTime() : null;
+                  const isOverdue = isActive && dueMs && dueMs < nowMs;
+                  const daysRemaining = (isActive && dueMs)
+                    ? Math.ceil((dueMs - nowMs) / (1000 * 60 * 60 * 24))
+                    : null;
+                  const isDueWithin7Days = isActive && !isOverdue && daysRemaining !== null && daysRemaining <= 7;
+                  const isDueWithin30Days = isActive && !isOverdue && daysRemaining !== null && daysRemaining > 7 && daysRemaining <= 30;
+
                   const formattedIssueDate = alloc.issuedAt
                     ? new Date(alloc.issuedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
                     : '-';
-                  const formattedDueDate = alloc.dueDate
-                    ? new Date(alloc.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-                    : 'Open';
+                  const formattedDueDate = effectiveDueDate
+                    ? new Date(effectiveDueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                    : null;
                   const formattedReturnDate = alloc.returnedAt
                     ? new Date(alloc.returnedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
                     : null;
@@ -465,7 +581,7 @@ export const Allocations = () => {
                     <tr
                       key={alloc.id}
                       className={`hover:bg-orange-50/20 transition-colors ${
-                        isSelected ? 'bg-orange-50/40' : isOverdue ? 'bg-rose-50/25' : ''
+                        isSelected ? 'bg-orange-50/40' : isOverdue ? 'bg-rose-50/25' : isDueWithin7Days ? 'bg-amber-50/20' : ''
                       }`}
                     >
                       {/* Selection Checkbox */}
@@ -475,7 +591,7 @@ export const Allocations = () => {
                           aria-label={`Select allocation record ${alloc.id}`}
                           checked={isSelected}
                           onChange={() => handleToggleSelect(alloc.id)}
-                          className="rounded border-slate-300 text-[#F26522] focus:ring-orange-500/20 cursor-pointer w-4 h-4"
+                          className="rounded border-slate-300 text-[#D9531E] focus:ring-orange-500/20 cursor-pointer w-4 h-4"
                         />
                       </td>
 
@@ -484,7 +600,7 @@ export const Allocations = () => {
                         <td className="py-2.5 px-2.5 whitespace-nowrap">
                           <div
                             onClick={() => navigate(`/inventory/${alloc.asset.id}`)}
-                            className="font-mono font-bold text-[#F26522] hover:underline cursor-pointer"
+                            className="font-mono font-bold text-[#D9531E] hover:underline cursor-pointer"
                           >
                             {alloc.asset.assetTag}
                           </div>
@@ -543,14 +659,35 @@ export const Allocations = () => {
                       {visibleColumns.includes('dueReturn') && (
                         <td className="py-2.5 px-2.5 whitespace-nowrap">
                           {isActive ? (
-                            <span className={isOverdue ? 'font-bold text-rose-600' : 'text-slate-700 font-medium'}>
-                              {formattedDueDate}
-                              {isOverdue && <span className="ml-1 text-[9px] font-extrabold uppercase text-rose-600">(Overdue)</span>}
-                            </span>
+                            formattedDueDate ? (
+                              <div className="flex flex-col">
+                                <span className={isOverdue ? 'font-bold text-rose-600' : 'text-slate-800 font-semibold'}>
+                                  {formattedDueDate}
+                                </span>
+                                {isOverdue && (
+                                  <span className="inline-block mt-0.5 px-1.5 py-0.2 rounded text-[9.5px] font-extrabold uppercase bg-rose-100 text-rose-700 border border-rose-200 w-max">
+                                    Overdue ({Math.abs(daysRemaining)}d)
+                                  </span>
+                                )}
+                                {isDueWithin7Days && (
+                                  <span className="inline-block mt-0.5 px-1.5 py-0.2 rounded text-[9.5px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 w-max">
+                                    Due in {daysRemaining} {daysRemaining === 1 ? 'day' : 'days'}
+                                  </span>
+                                )}
+                                {isDueWithin30Days && (
+                                  <span className="inline-block mt-0.5 px-1.5 py-0.2 rounded text-[9.5px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 w-max">
+                                    Due in {daysRemaining} days
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 italic font-medium">Not Scheduled</span>
+                            )
                           ) : (
-                            <span className="text-slate-500 font-medium">
-                              {formattedReturnDate}
-                            </span>
+                            <div className="flex flex-col">
+                              <span className="text-slate-600 font-medium">{formattedReturnDate}</span>
+                              <span className="text-[9.5px] font-bold text-emerald-700 uppercase">Returned</span>
+                            </div>
                           )}
                         </td>
                       )}

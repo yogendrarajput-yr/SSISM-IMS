@@ -256,6 +256,7 @@ model Allocation {
   
   issuedAt        DateTime         @default(now())
   dueDate         DateTime?
+  expectedReturnDate DateTime?
   
   returnedAt      DateTime?
   returnedById    Int?
@@ -278,6 +279,7 @@ model Allocation {
   @@index([assetId])
   @@index([recipientId])
   @@index([status])
+  @@index([expectedReturnDate])
 }
 
 /// Hardware Service, Component Replacement & Upgrade History

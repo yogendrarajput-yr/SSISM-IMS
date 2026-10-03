@@ -553,12 +553,19 @@ export const getDashboardMetrics = async ({ departmentId, make } = {}) => {
     allocWhere.asset = { make };
   }
 
+  const now = new Date();
+  const in7Days = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const in30Days = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
   const [
     totalAssets,
     availableCount,
     issuedCount,
     maintenanceCount,
     retiredCount,
+    dueThisWeekCount,
+    dueThisMonthCount,
+    upcomingReturns,
     conditionStats,
     departmentAssets,
     recentAllocations,
@@ -571,6 +578,65 @@ export const getDashboardMetrics = async ({ departmentId, make } = {}) => {
     prisma.asset.count({ where: { ...assetWhere, status: 'ISSUED' } }),
     prisma.asset.count({ where: { ...assetWhere, status: 'UNDER_MAINTENANCE' } }),
     prisma.asset.count({ where: { ...assetWhere, status: 'RETIRED' } }),
+    prisma.allocation.count({
+      where: {
+        status: 'ACTIVE',
+        ...allocWhere,
+        OR: [
+          { expectedReturnDate: { gte: now, lte: in7Days } },
+          { expectedReturnDate: null, dueDate: { gte: now, lte: in7Days } },
+        ],
+      },
+    }),
+    prisma.allocation.count({
+      where: {
+        status: 'ACTIVE',
+        ...allocWhere,
+        OR: [
+          { expectedReturnDate: { gte: now, lte: in30Days } },
+          { expectedReturnDate: null, dueDate: { gte: now, lte: in30Days } },
+        ],
+      },
+    }),
+    prisma.allocation.findMany({
+      where: {
+        status: 'ACTIVE',
+        ...allocWhere,
+        OR: [
+          { expectedReturnDate: { gte: now, lte: in30Days } },
+          { expectedReturnDate: null, dueDate: { gte: now, lte: in30Days } },
+        ],
+      },
+      take: 8,
+      orderBy: [
+        { expectedReturnDate: 'asc' },
+        { dueDate: 'asc' },
+      ],
+      include: {
+        asset: {
+          select: {
+            id: true,
+            assetTag: true,
+            make: true,
+            model: true,
+            serialNumber: true,
+            condition: true,
+          },
+        },
+        recipient: {
+          select: {
+            id: true,
+            name: true,
+            rollNumberOrEmpId: true,
+            role: true,
+            email: true,
+            phone: true,
+            department: { select: { id: true, name: true, code: true } },
+          },
+        },
+        issuedBy: { select: { name: true } },
+      },
+    }),
     prisma.asset.groupBy({
       by: ['condition'],
       where: assetWhere,
@@ -625,7 +691,10 @@ export const getDashboardMetrics = async ({ departmentId, make } = {}) => {
       issued: issuedCount,
       underMaintenance: maintenanceCount,
       retired: retiredCount,
+      dueThisWeek: dueThisWeekCount,
+      dueThisMonth: dueThisMonthCount,
     },
+    upcomingReturns,
     conditionStats,
     departmentAssets,
     recentAllocations,
