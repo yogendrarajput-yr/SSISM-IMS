@@ -424,11 +424,13 @@ export const Students = ({ hideTitle = false }) => {
           value={metrics.totalActiveStudents || 0}
           icon={Users}
           color="blue"
-          active={custodyStatus === 'ALL' && feeStatus === 'ALL' && !departmentId && !search}
+          active={custodyStatus === 'ALL' && feeStatus === 'ALL' && branch === 'ALL' && batchYear === 'ALL' && track === 'ALL' && !search}
           onClick={() => {
             setCustodyStatus('ALL');
             setFeeStatus('ALL');
-            setDepartmentId('');
+            setBranch('ALL');
+            setBatchYear('ALL');
+            setTrack('ALL');
             setSearch('');
             setPagination((p) => ({ ...p, page: 1 }));
           }}
@@ -439,9 +441,9 @@ export const Students = ({ hideTitle = false }) => {
           value={metrics.holdingLaptop || 0}
           icon={Laptop}
           color="green"
-          active={custodyStatus === 'HOLDING'}
+          active={custodyStatus === 'ISSUED'}
           onClick={() => {
-            setCustodyStatus(custodyStatus === 'HOLDING' ? 'ALL' : 'HOLDING');
+            setCustodyStatus(custodyStatus === 'ISSUED' ? 'ALL' : 'ISSUED');
             setPagination((p) => ({ ...p, page: 1 }));
           }}
         />
@@ -993,7 +995,7 @@ export const Students = ({ hideTitle = false }) => {
                 required
                 value={studentForm.email}
                 onChange={(e) => setStudentForm({ ...studentForm, email: e.target.value })}
-                placeholder="st.name@ssism.edu"
+                placeholder="st.name@ssism.org"
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#F26522]/30 focus:border-[#F26522] outline-none"
               />
             </div>

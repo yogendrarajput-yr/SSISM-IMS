@@ -240,7 +240,7 @@ export const createAllocation = async ({
       include: {
         asset: true,
         recipient: {
-          select: { id: true, name: true, email: true, phone: true, rollNumberOrEmpId: true, role: true },
+          select: { id: true, name: true, email: true, phone: true, rollNumberOrEmpId: true, role: true, department: true, branch: true },
         },
         issuedBy: { select: { id: true, name: true, email: true } },
       },
@@ -330,7 +330,7 @@ export const returnAllocation = async ({
       include: {
         asset: true,
         recipient: {
-          select: { id: true, name: true, email: true, phone: true, rollNumberOrEmpId: true, role: true },
+          select: { id: true, name: true, email: true, phone: true, rollNumberOrEmpId: true, role: true, department: true, branch: true },
         },
         issuedBy: { select: { id: true, name: true, email: true } },
         returnedBy: { select: { id: true, name: true, email: true } },

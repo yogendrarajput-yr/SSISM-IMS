@@ -248,7 +248,7 @@ export const QuickCreateUserModal = ({ isOpen, onClose, onUserCreated }) => {
                 required
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="username@ssism.edu"
+                placeholder="username@ssism.org"
                 className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#F26522]/30 focus:border-[#F26522] outline-none"
               />
             </div>

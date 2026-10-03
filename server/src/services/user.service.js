@@ -44,9 +44,9 @@ export const getStudentsList = async ({
   if (track) where.track = track;
   if (departmentId) where.departmentId = Number(departmentId);
 
-  if (custodyStatus === 'ISSUED') {
+  if (custodyStatus === 'ISSUED' || custodyStatus === 'HOLDING') {
     where.receivedAllocations = { some: { status: 'ACTIVE' } };
-  } else if (custodyStatus === 'AVAILABLE') {
+  } else if (custodyStatus === 'AVAILABLE' || custodyStatus === 'NONE') {
     where.receivedAllocations = { none: { status: 'ACTIVE' } };
   }
 
@@ -503,9 +503,9 @@ export const getStaffList = async ({
   if (departmentId) where.departmentId = Number(departmentId);
   if (designation) where.designation = { contains: designation };
 
-  if (custodyStatus === 'ISSUED') {
+  if (custodyStatus === 'ISSUED' || custodyStatus === 'HOLDING') {
     where.receivedAllocations = { some: { status: 'ACTIVE' } };
-  } else if (custodyStatus === 'AVAILABLE') {
+  } else if (custodyStatus === 'AVAILABLE' || custodyStatus === 'NONE') {
     where.receivedAllocations = { none: { status: 'ACTIVE' } };
   }
 
@@ -862,14 +862,19 @@ export const updateUser = async (id, data, actorId, ipAddress) => {
     if (existingEmail) throw new AppError(`Email '${data.email}' is already taken.`, 409);
   }
 
-  if (data.rollNumberOrEmpId && data.rollNumberOrEmpId.trim() !== user.rollNumberOrEmpId) {
-    const existingRoll = await prisma.user.findUnique({ where: { rollNumberOrEmpId: data.rollNumberOrEmpId.trim() } });
-    if (existingRoll) throw new AppError(`Roll Number / Emp ID '${data.rollNumberOrEmpId}' is already taken.`, 409);
+  const rollOrEmp = data.rollNumberOrEmpId || data.rollNumber || data.employeeId;
+  if (rollOrEmp && rollOrEmp.trim() !== user.rollNumberOrEmpId) {
+    const existingRoll = await prisma.user.findUnique({ where: { rollNumberOrEmpId: rollOrEmp.trim() } });
+    if (existingRoll && existingRoll.id !== user.id) {
+      throw new AppError(`Roll Number / Emp ID '${rollOrEmp}' is already taken.`, 409);
+    }
   }
 
   if (data.aadhaarNumber && data.aadhaarNumber.trim() !== (user.aadhaarNumber || '')) {
     const existingAadhaar = await prisma.user.findUnique({ where: { aadhaarNumber: data.aadhaarNumber.trim() } });
-    if (existingAadhaar) throw new AppError(`Aadhaar Number '${data.aadhaarNumber}' is already in use.`, 409);
+    if (existingAadhaar && existingAadhaar.id !== user.id) {
+      throw new AppError(`Aadhaar Number '${data.aadhaarNumber}' is already in use.`, 409);
+    }
   }
 
   const updateData = {};
@@ -881,7 +886,7 @@ export const updateUser = async (id, data, actorId, ipAddress) => {
   if (data.phone !== undefined) updateData.phone = data.phone ? data.phone.trim() : null;
   if (data.email !== undefined) updateData.email = data.email.trim().toLowerCase();
   if (data.aadhaarNumber !== undefined) updateData.aadhaarNumber = data.aadhaarNumber ? data.aadhaarNumber.trim() : null;
-  if (data.rollNumberOrEmpId !== undefined) updateData.rollNumberOrEmpId = data.rollNumberOrEmpId.trim();
+  if (rollOrEmp !== undefined) updateData.rollNumberOrEmpId = rollOrEmp.trim();
   if (data.address !== undefined) updateData.address = data.address ? data.address.trim() : null;
   if (data.designation !== undefined) updateData.designation = data.designation ? data.designation.trim() : null;
   if (data.departmentId !== undefined) updateData.departmentId = data.departmentId ? Number(data.departmentId) : null;

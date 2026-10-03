@@ -41,11 +41,16 @@ export const createAllocation = async (req, res, next) => {
       sendLaptopIssuedEmail({
         to: recipient.email,
         userName: recipient.name,
+        employeeId: recipient.rollNumberOrEmpId,
+        department: recipient.department?.name || recipient.branch || 'SSISM Faculty',
         laptopModel: `${asset.make} ${asset.model}`.trim(),
         serialNumber: asset.serialNumber,
         assetTag: asset.assetTag,
-        issueDate: allocation.issuedAt ? new Date(allocation.issuedAt).toLocaleDateString('en-IN') : undefined,
-        dueDate: allocation.dueDate ? new Date(allocation.dueDate).toLocaleDateString('en-IN') : undefined,
+        condition: allocation.issueCondition || asset.condition,
+        chargerSerial: asset.chargerSerial,
+        issuedBy: allocation.issuedBy?.name,
+        issueDate: allocation.issuedAt ? new Date(allocation.issuedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : undefined,
+        dueDate: allocation.dueDate ? new Date(allocation.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : undefined,
         userRole,
         notes: allocation.notes,
       }).catch((err) => {
@@ -94,13 +99,18 @@ export const returnAllocation = async (req, res, next) => {
       sendLaptopReturnedEmail({
         to: recipient.email,
         userName: recipient.name,
+        employeeId: recipient.rollNumberOrEmpId,
+        department: recipient.department?.name || recipient.branch || 'SSISM Faculty',
         laptopModel: `${asset.make} ${asset.model}`.trim(),
         serialNumber: asset.serialNumber,
         assetTag: asset.assetTag,
-        returnDate: allocation.returnedAt ? new Date(allocation.returnedAt).toLocaleDateString('en-IN') : undefined,
+        returnDate: allocation.returnedAt ? new Date(allocation.returnedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : undefined,
         returnCondition: allocation.returnCondition,
+        fineAmount: allocation.fineAmount,
+        finePaid: allocation.finePaid,
+        returnedBy: allocation.returnedBy?.name,
         userRole,
-        notes: allocation.notes,
+        notes: req.body.notes || allocation.notes,
       }).catch((err) => {
         console.error("Failed to send email to Faculty:", recipient.email, err.message);
       });

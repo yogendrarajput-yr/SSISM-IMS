@@ -38,14 +38,28 @@ export const generateTokens = (user) => {
  * @param {string} credentials.ipAddress
  */
 export const loginUser = async ({ email, password, ipAddress }) => {
-  const user = await prisma.user.findUnique({
-    where: { email: email.toLowerCase() },
+  const cleanEmail = String(email || '').toLowerCase().trim();
+  let user = await prisma.user.findUnique({
+    where: { email: cleanEmail },
     include: {
       department: {
         select: { id: true, name: true, code: true },
       },
     },
   });
+
+  // Seamless fallback if user types legacy @ssism.edu domain
+  if (!user && cleanEmail.endsWith('@ssism.edu')) {
+    const orgEmail = cleanEmail.replace(/@ssism\.edu$/, '@ssism.org');
+    user = await prisma.user.findUnique({
+      where: { email: orgEmail },
+      include: {
+        department: {
+          select: { id: true, name: true, code: true },
+        },
+      },
+    });
+  }
 
   if (!user || !user.isActive) {
     throw new AppError('Invalid email or password.', 401);

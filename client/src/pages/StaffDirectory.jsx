@@ -403,10 +403,10 @@ export const StaffDirectory = ({ hideTitle = false }) => {
           value={metrics.totalStaff || 0}
           icon={UserCheck}
           color="blue"
-          active={custodyStatus === 'ALL' && !departmentId && !search}
+          active={custodyStatus === 'ALL' && (departmentId === 'ALL' || !departmentId) && !search}
           onClick={() => {
             setCustodyStatus('ALL');
-            setDepartmentId('');
+            setDepartmentId('ALL');
             setSearch('');
             setPagination((p) => ({ ...p, page: 1 }));
           }}
@@ -429,10 +429,10 @@ export const StaffDirectory = ({ hideTitle = false }) => {
           value={departments.length}
           icon={Building}
           color="purple"
-          active={Boolean(departmentId)}
+          active={departmentId !== 'ALL' && Boolean(departmentId)}
           onClick={() => {
-            if (departmentId) {
-              setDepartmentId('');
+            if (departmentId !== 'ALL') {
+              setDepartmentId('ALL');
             } else if (departments.length > 0) {
               setDepartmentId(String(departments[0].id));
             }
@@ -872,7 +872,7 @@ export const StaffDirectory = ({ hideTitle = false }) => {
                 required
                 value={staffForm.email}
                 onChange={(e) => setStaffForm({ ...staffForm, email: e.target.value })}
-                placeholder="faculty.name@ssism.edu"
+                placeholder="faculty.name@ssism.org"
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#F26522]/30 focus:border-[#F26522] outline-none"
               />
             </div>
