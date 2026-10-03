@@ -271,6 +271,7 @@ model Allocation {
   finePaymentMode String?          // CASH, UPI, BANK_TRANSFER, PENDING
   
   status          AllocationStatus @default(ACTIVE)
+  accessories     Json?            // Array of issued accessories, e.g. ["Charger / Adapter", "Laptop Bag", "External Mouse"]
   notes           String?          @db.Text
   
   createdAt       DateTime         @default(now())

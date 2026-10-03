@@ -39,8 +39,63 @@ export const ReceiptModal = ({ isOpen, onClose, allocation }) => {
       })
     : 'End of Academic Year';
 
+  const formatDuration = (startDate, endDate) => {
+    if (!startDate) return 'Not Recorded';
+    const start = new Date(startDate);
+    const end = endDate ? new Date(endDate) : new Date();
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return 'Not Recorded';
+    if (end <= start) return '1 Day (Same Day Return)';
+
+    const totalDays = Math.max(1, Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+
+    let years = end.getFullYear() - start.getFullYear();
+    let months = end.getMonth() - start.getMonth();
+    let days = end.getDate() - start.getDate();
+
+    if (days < 0) {
+      months -= 1;
+      const prevMonthLastDay = new Date(end.getFullYear(), end.getMonth(), 0).getDate();
+      days += prevMonthLastDay;
+    }
+    if (months < 0) {
+      years -= 1;
+      months += 12;
+    }
+
+    const parts = [];
+    if (years > 0) parts.push(`${years} ${years === 1 ? 'Year' : 'Years'}`);
+    if (months > 0) parts.push(`${months} ${months === 1 ? 'Month' : 'Months'}`);
+    if (days > 0) parts.push(`${days} ${days === 1 ? 'Day' : 'Days'}`);
+
+    if (years === 0 && months === 0) {
+      return `${totalDays} ${totalDays === 1 ? 'Day' : 'Days'}`;
+    }
+
+    return parts.length > 0 ? parts.join(', ') : `${totalDays} Days`;
+  };
+
+  const getAccessoriesList = (acc) => {
+    if (!acc) return [];
+    if (Array.isArray(acc)) return acc.filter(Boolean);
+    if (typeof acc === 'string') {
+      try {
+        const parsed = JSON.parse(acc);
+        if (Array.isArray(parsed)) return parsed.filter(Boolean);
+      } catch {
+        return [acc];
+      }
+    }
+    return [];
+  };
+
+  const isReturned = allocation.status === 'RETURNED';
+  const durationText = allocation.duration || formatDuration(allocation.issuedAt, allocation.returnedAt);
+  const accessoriesList = getAccessoriesList(allocation.accessories);
+  const isStudent = allocation.recipient?.role === 'STUDENT';
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Campus Hardware Allocation Receipt" maxWidth="max-w-2xl">
+    <Modal isOpen={isOpen} onClose={onClose} title="Campus Hardware Allocation Receipt & Details" maxWidth="max-w-2xl">
       <div className="space-y-6">
         {/* Printable Receipt Card */}
         <div id="receipt-print-area" className="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm text-slate-800 space-y-5">
@@ -63,29 +118,77 @@ export const ReceiptModal = ({ isOpen, onClose, allocation }) => {
             </div>
           </div>
 
+          {/* Allocation Duration Badge (if returned) */}
+          {isReturned && (
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800 block">
+                  Total Custody Duration
+                </span>
+                <span className="text-sm font-extrabold text-emerald-900">{durationText}</span>
+              </div>
+              <div className="text-right text-[11px] text-emerald-700">
+                <div>Issued: {issueDateStr}</div>
+                <div>Returned: {allocation.returnedAt ? new Date(allocation.returnedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Cleared'}</div>
+              </div>
+            </div>
+          )}
+
           {/* Details Grid */}
           <div className="grid grid-cols-2 gap-4 text-xs">
             <div className="p-3 bg-slate-50 rounded-xl space-y-1.5 border border-slate-100">
               <div className="font-bold text-slate-900 uppercase tracking-wider text-[10px]">
-                Recipient Information
+                {isStudent ? 'Student Profile' : 'Faculty / Staff Profile'}
               </div>
               <div><span className="text-slate-500">Name:</span> <strong>{allocation.recipient?.name}</strong></div>
-              <div><span className="text-slate-500">Roll/Emp ID:</span> <span className="font-mono">{allocation.recipient?.rollNumberOrEmpId}</span></div>
-              <div><span className="text-slate-500">Role:</span> {allocation.recipient?.role}</div>
-              <div><span className="text-slate-500">Department:</span> {allocation.recipient?.department?.name || 'General'}</div>
-              <div><span className="text-slate-500">Due Date:</span> {dueDateStr}</div>
+              <div><span className="text-slate-500">{isStudent ? 'Roll No:' : 'Emp ID:'}</span> <span className="font-mono font-bold text-[#D9531E]">{allocation.recipient?.rollNumberOrEmpId}</span></div>
+              <div><span className="text-slate-500">Role:</span> <span className="font-semibold text-slate-800">{allocation.recipient?.role}</span></div>
+              {allocation.recipient?.branch && (
+                <div><span className="text-slate-500">Branch:</span> {allocation.recipient.branch}</div>
+              )}
+              {allocation.recipient?.batchYear && (
+                <div><span className="text-slate-500">Batch Year:</span> {allocation.recipient.batchYear}</div>
+              )}
+              <div><span className="text-slate-500">Department:</span> {allocation.recipient?.department?.name || allocation.recipient?.branch || 'General'}</div>
+              <div><span className="text-slate-500">Email:</span> <span className="font-mono text-[11px]">{allocation.recipient?.email || 'N/A'}</span></div>
+              <div><span className="text-slate-500">{isReturned ? 'Return Status:' : 'Scheduled Due:'}</span> <strong className={isReturned ? 'text-emerald-700' : 'text-slate-800'}>{isReturned ? 'RETURNED & CLEARED' : dueDateStr}</strong></div>
             </div>
 
             <div className="p-3 bg-slate-50 rounded-xl space-y-1.5 border border-slate-100">
               <div className="font-bold text-slate-900 uppercase tracking-wider text-[10px]">
                 Hardware & Accessories Handed Over
               </div>
-              <div><span className="text-slate-500">Asset Tag:</span> <strong className="font-mono text-brand-600">{allocation.asset?.assetTag}</strong></div>
+              <div><span className="text-slate-500">Asset Tag:</span> <strong className="font-mono text-[#D9531E]">{allocation.asset?.assetTag}</strong></div>
               <div><span className="text-slate-500">Serial No:</span> <span className="font-mono">{allocation.asset?.serialNumber}</span></div>
               <div><span className="text-slate-500">Make & Model:</span> {allocation.asset?.make} {allocation.asset?.model}</div>
               <div><span className="text-slate-500">Specs:</span> {allocation.asset?.processor}, {allocation.asset?.ram}, {allocation.asset?.storage}</div>
-              <div><span className="text-slate-500">Charger S/N:</span> {allocation.asset?.chargerSerial || 'Tagged OEM'}</div>
-              <div><span className="text-slate-500">Accessories:</span> {allocation.asset?.hasBag ? 'Bag (✓)' : ''} {allocation.asset?.hasMouse ? 'Mouse (✓)' : ''}</div>
+              <div><span className="text-slate-500">Handover Condition:</span> <strong className="text-emerald-700">{allocation.issueCondition || allocation.asset?.condition || 'GOOD'}</strong></div>
+              {allocation.asset?.chargerSerial && (
+                <div><span className="text-slate-500">Charger S/N:</span> {allocation.asset.chargerSerial}</div>
+              )}
+              
+              {/* Accessories Checklist */}
+              <div className="pt-1 border-t border-slate-200/60 mt-1">
+                <span className="text-slate-500 block text-[10px] font-bold uppercase tracking-wider mb-1">
+                  Issued Accessories:
+                </span>
+                {accessoriesList.length > 0 ? (
+                  <div className="space-y-0.5">
+                    {accessoriesList.map((item, idx) => (
+                      <div key={idx} className="flex items-center space-x-1.5 text-slate-700 font-semibold text-[11px]">
+                        <span className="text-emerald-600 font-bold">[✓]</span>
+                        <span>{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-slate-500 italic text-[11px]">
+                    {allocation.asset?.hasBag ? '• Laptop Bag (✓) ' : ''}
+                    {allocation.asset?.hasMouse ? '• Mouse (✓) ' : ''}
+                    {!allocation.asset?.hasBag && !allocation.asset?.hasMouse ? 'Standard Power Adapter' : ''}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

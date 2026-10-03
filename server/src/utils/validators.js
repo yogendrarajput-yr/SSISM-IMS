@@ -53,6 +53,8 @@ export const createAllocationSchema = z.object({
   assetId: z.number().int().positive('Valid Asset ID is required'),
   recipientId: z.number().int().positive('Valid Recipient ID is required'),
   dueDate: z.string().datetime().optional().nullable().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable()),
+  expectedReturnDate: z.string().datetime().optional().nullable().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable()),
+  accessories: z.union([z.array(z.string()), z.record(z.any()), z.null()]).optional(),
   issueCondition: z.enum(['BRAND_NEW', 'GOOD', 'SCRATCHES', 'DAMAGED']).default('GOOD'),
   notes: z.string().optional().nullable(),
   overrideUnpaidFeeWarning: z.boolean().default(false),
@@ -68,6 +70,7 @@ export const returnAllocationSchema = z.object({
   fineReason: z.string().optional().nullable(),
   finePaid: z.boolean().optional().nullable(),
   finePaymentMode: z.string().optional().nullable(),
+  sendEmail: z.boolean().optional().nullable(),
 });
 
 /**

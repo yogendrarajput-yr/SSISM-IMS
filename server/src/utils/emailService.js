@@ -5,11 +5,15 @@
  * Sant Singaji Institute of Science and Management, Sandalpur, Teh - Khategaon, Dist - Dewas, MP
  * 
  * Configured with Nodemailer for automated institutional email notifications.
- * Enforces role-based delivery rules:
- * - Emails are sent ONLY to Faculty / Employees / Staff upon laptop issue and return.
- * - Emails are explicitly SKIPPED for STUDENT role with diagnostic log.
- * - Mandatory Liability Disclaimer on all outgoing custody templates.
- * - Professional palette: #D9531E (Brand Accent), #2C3E50 (Dark Text), #F8F9FA (Light Background).
+ * Delivery Rules:
+ * - Sends official confirmation to both Students and Faculty / Employees upon laptop issue and return.
+ * - Header container styled with pure white (#FFFFFF) background and border-bottom: 2px solid #D9531E
+ *   ensuring maximum emblem/logo visibility.
+ * - Dynamic student-specific details (Roll Number, Course/Branch, Semester/Batch) and Faculty details.
+ * - Allocation custody duration tracking (e.g. "1 Year, 2 Months, 5 Days" or "45 Days").
+ * - Accessory checklist verification.
+ * - Mandatory Institutional Liability Disclaimer on custody allocation notices.
+ * - Official sender metadata: "Sant Singaji Institute of Science and Management - IT Asset Management" <computerlab@ssism.org>.
  */
 
 import nodemailer from 'nodemailer';
@@ -22,6 +26,72 @@ const __dirname = path.dirname(__filename);
 
 // Path to official emblem logo
 const LOGO_PATH = path.resolve(__dirname, '../../../client/public/Logo/SSISM.png');
+
+/**
+ * Format elapsed time between issueDate and returnDate into human-readable text
+ * e.g., "1 Year, 2 Months, 5 Days" or "45 Days"
+ * 
+ * @param {string|Date} startDate - Issue Date
+ * @param {string|Date} endDate - Return Date
+ * @returns {string} Human-readable duration
+ */
+export const formatAllocationDuration = (startDate, endDate) => {
+  if (!startDate) return 'Not Recorded';
+  const start = new Date(startDate);
+  const end = endDate ? new Date(endDate) : new Date();
+
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return 'Not Recorded';
+  if (end <= start) return '1 Day (Same Day Return)';
+
+  const totalDays = Math.max(1, Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+
+  let years = end.getFullYear() - start.getFullYear();
+  let months = end.getMonth() - start.getMonth();
+  let days = end.getDate() - start.getDate();
+
+  if (days < 0) {
+    months -= 1;
+    const prevMonthLastDay = new Date(end.getFullYear(), end.getMonth(), 0).getDate();
+    days += prevMonthLastDay;
+  }
+  if (months < 0) {
+    years -= 1;
+    months += 12;
+  }
+
+  const parts = [];
+  if (years > 0) parts.push(`${years} ${years === 1 ? 'Year' : 'Years'}`);
+  if (months > 0) parts.push(`${months} ${months === 1 ? 'Month' : 'Months'}`);
+  if (days > 0) parts.push(`${days} ${days === 1 ? 'Day' : 'Days'}`);
+
+  if (years === 0 && months === 0) {
+    return `${totalDays} ${totalDays === 1 ? 'Day' : 'Days'}`;
+  }
+
+  return parts.length > 0 ? parts.join(', ') : `${totalDays} Days`;
+};
+
+/**
+ * Normalize accessories input (JSON string, array, or object) to a clean array of strings
+ */
+export const formatAccessoriesList = (acc) => {
+  if (!acc) return [];
+  if (Array.isArray(acc)) return acc.filter(Boolean);
+  if (typeof acc === 'string') {
+    try {
+      const parsed = JSON.parse(acc);
+      if (Array.isArray(parsed)) return parsed.filter(Boolean);
+    } catch {
+      return [acc];
+    }
+  }
+  if (typeof acc === 'object') {
+    return Object.entries(acc)
+      .filter(([_, v]) => Boolean(v))
+      .map(([k]) => k.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()));
+  }
+  return [];
+};
 
 /**
  * Helper to check if a user role belongs to Faculty or Employee / Staff
@@ -66,18 +136,26 @@ const getTransporter = () => {
 const generateIssuedEmailHtml = ({
   userName,
   employeeId,
+  rollNumber,
+  userRole = 'STUDENT',
+  courseBranch,
+  semesterYear,
   department,
   laptopModel,
   serialNumber,
   assetTag,
   condition,
   chargerSerial,
+  accessories = [],
   issueDate,
   expectedReturnDate,
   dueDate,
   notes,
 }) => {
-  const returnDueDisplay = expectedReturnDate || dueDate || 'Not Specified (Subject to Recall)';
+  const returnDueDisplay = expectedReturnDate || dueDate || 'Not Specified (Subject to Institutional Recall)';
+  const isStudent = String(userRole || '').toUpperCase().trim() === 'STUDENT';
+  const idValue = rollNumber || employeeId || 'N/A';
+  const accessoriesList = formatAccessoriesList(accessories);
 
   return `
 <!DOCTYPE html>
@@ -89,26 +167,26 @@ const generateIssuedEmailHtml = ({
 </head>
 <body style="margin: 0; padding: 24px; background-color: #F8F9FA; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2C3E50;">
   <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 620px; margin: 0 auto; background-color: #ffffff; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06); border: 1px solid #E2E8F0;">
-    <!-- Top Brand Accent Bar -->
+    <!-- Top Accent Bar -->
     <tr>
       <td style="height: 6px; background-color: #D9531E;"></td>
     </tr>
-    <!-- Header -->
+    <!-- Header (Light background to maximize logo visibility with clean separation border) -->
     <tr>
-      <td style="background-color: #2C3E50; padding: 26px 22px; text-align: center;">
-        <img src="cid:ssismlogo" alt="SSISM Logo" style="height: 52px; width: auto; margin: 0 auto 12px auto; display: block;" />
-        <h1 style="margin: 0; font-size: 16px; font-weight: 800; color: #ffffff; letter-spacing: 0.4px; text-transform: uppercase; line-height: 1.4;">
+      <td style="background-color: #FFFFFF; padding: 26px 22px; text-align: center; border-bottom: 2px solid #D9531E;">
+        <img src="cid:ssismlogo" alt="SSISM Logo" style="height: 58px; width: auto; margin: 0 auto 12px auto; display: block;" />
+        <h1 style="margin: 0; font-size: 16px; font-weight: 800; color: #2C3E50; letter-spacing: 0.4px; text-transform: uppercase; line-height: 1.4;">
           Sant Singaji Institute of Science and Management
         </h1>
-        <p style="margin: 4px 0 0; font-size: 11.5px; color: #CBD5E1; font-weight: 500;">
+        <p style="margin: 4px 0 0; font-size: 11.5px; color: #64748B; font-weight: 600;">
           Sandalpur, Teh - Khategaon, Dist - Dewas, MP
         </p>
-        <div style="display: inline-block; margin-top: 10px; padding: 3px 10px; background-color: rgba(217, 83, 30, 0.2); border: 1px solid #D9531E; border-radius: 20px; font-size: 10.5px; font-weight: 700; color: #FFA07A; letter-spacing: 1px; text-transform: uppercase;">
+        <div style="display: inline-block; margin-top: 10px; padding: 3px 12px; background-color: #FFF7ED; border: 1px solid #FED7AA; border-radius: 20px; font-size: 10.5px; font-weight: 700; color: #D9531E; letter-spacing: 0.8px; text-transform: uppercase;">
           IT Asset & Inventory Management System
         </div>
       </td>
     </tr>
-    <!-- Status / Notice Banner -->
+    <!-- Notice Banner -->
     <tr>
       <td style="background-color: #FFF7ED; padding: 12px 22px; border-bottom: 1px solid #FED7AA; text-align: center;">
         <span style="display: inline-block; background-color: #D9531E; color: #ffffff; font-size: 11px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; padding: 3px 12px; border-radius: 9999px;">
@@ -123,11 +201,52 @@ const generateIssuedEmailHtml = ({
     <tr>
       <td style="padding: 26px 24px;">
         <p style="margin: 0 0 16px; font-size: 14px; line-height: 1.6; color: #2C3E50;">
-          Dear <strong>${userName}</strong>${employeeId ? ` (ID: <span style="font-family: monospace; font-weight: 700; color: #D9531E;">${employeeId}</span>)` : ''},
+          Dear <strong>${userName}</strong>,
         </p>
         <p style="margin: 0 0 20px; font-size: 13px; line-height: 1.6; color: #475569;">
-          This official notification confirms that the campus IT laptop computer detailed below has been formally issued to your academic and professional custody.
+          This official notification confirms that the campus IT laptop computer detailed below has been formally issued to your custody for academic and professional use.
         </p>
+
+        <!-- Recipient Information Card -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #F8F9FA; border: 1px solid #E2E8F0; border-radius: 10px; margin-bottom: 20px; overflow: hidden;">
+          <tr>
+            <td colspan="2" style="background-color: #EDF2F7; padding: 10px 16px; border-bottom: 1px solid #E2E8F0; font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; color: #2C3E50;">
+              ${isStudent ? 'Student Custody Profile' : 'Faculty / Staff Custody Profile'}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; width: 40%; border-bottom: 1px solid #E2E8F0;">Full Name:</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #2C3E50; font-weight: 700; border-bottom: 1px solid #E2E8F0;">${userName}</td>
+          </tr>
+          <tr>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">
+              ${isStudent ? 'Roll Number:' : 'Employee / Staff ID:'}
+            </td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #D9531E; font-family: monospace; font-weight: 800; border-bottom: 1px solid #E2E8F0;">${idValue}</td>
+          </tr>
+          <tr>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">Institutional Role:</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #2C3E50; font-weight: 600; border-bottom: 1px solid #E2E8F0;">
+              <span style="display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; background-color: ${isStudent ? '#EFF6FF' : '#F0FDF4'}; color: ${isStudent ? '#1D4ED8' : '#15803D'};">
+                ${userRole || (isStudent ? 'STUDENT' : 'FACULTY')}
+              </span>
+            </td>
+          </tr>
+          ${isStudent && (courseBranch || department) ? `
+          <tr>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">Course / Branch:</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #2C3E50; font-weight: 600; border-bottom: 1px solid #E2E8F0;">${courseBranch || department}</td>
+          </tr>` : ''}
+          ${isStudent && semesterYear ? `
+          <tr>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">Batch / Academic Year:</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #2C3E50; font-weight: 600; border-bottom: 1px solid #E2E8F0;">${semesterYear}</td>
+          </tr>` : ''}
+          <tr>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600;">Department:</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #2C3E50; font-weight: 600;">${department || 'General Campus'}</td>
+          </tr>
+        </table>
 
         <!-- Device Specs Card -->
         <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #F8F9FA; border: 1px solid #E2E8F0; border-radius: 10px; margin-bottom: 20px; overflow: hidden;">
@@ -138,41 +257,55 @@ const generateIssuedEmailHtml = ({
           </tr>
           ${assetTag ? `
           <tr>
-            <td style="padding: 9px 16px; width: 38%; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">Asset Tag Number:</td>
-            <td style="padding: 9px 16px; width: 62%; font-size: 13px; color: #D9531E; font-weight: 800; font-family: monospace; border-bottom: 1px solid #E2E8F0;">
-              <span style="background-color: #FFF7ED; border: 1px solid #FDBA74; padding: 2px 8px; border-radius: 6px;">${assetTag}</span>
-            </td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; width: 40%; border-bottom: 1px solid #E2E8F0;">Asset Tag:</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #D9531E; font-family: monospace; font-weight: 800; border-bottom: 1px solid #E2E8F0;">${assetTag}</td>
           </tr>` : ''}
           <tr>
-            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">Device Make & Model:</td>
-            <td style="padding: 9px 16px; font-size: 13px; color: #2C3E50; font-weight: 700; border-bottom: 1px solid #E2E8F0;">${laptopModel || 'Campus Notebook'}</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">Laptop Model:</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #2C3E50; font-weight: 700; border-bottom: 1px solid #E2E8F0;">${laptopModel}</td>
           </tr>
           <tr>
-            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">Hardware Serial (S/N):</td>
-            <td style="padding: 9px 16px; font-size: 12.5px; color: #2C3E50; font-family: monospace; font-weight: 700; border-bottom: 1px solid #E2E8F0;">${serialNumber || 'N/A'}</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">Serial Number:</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #2C3E50; font-family: monospace; font-weight: 600; border-bottom: 1px solid #E2E8F0;">${serialNumber}</td>
+          </tr>
+          <tr>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">Physical Condition:</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #059669; font-weight: 700; border-bottom: 1px solid #E2E8F0;">${condition || 'GOOD (Tested & Verified)'}</td>
           </tr>
           ${chargerSerial ? `
           <tr>
-            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">Charger Serial:</td>
-            <td style="padding: 9px 16px; font-size: 12.5px; color: #2C3E50; font-family: monospace; font-weight: 600; border-bottom: 1px solid #E2E8F0;">${chargerSerial}</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">Charger Serial / OEM:</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #2C3E50; font-family: monospace; border-bottom: 1px solid #E2E8F0;">${chargerSerial}</td>
           </tr>` : ''}
+          
+          <!-- Accessory Checklist Row -->
           <tr>
-            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">Handover Condition:</td>
-            <td style="padding: 9px 16px; font-size: 12.5px; color: #16A34A; font-weight: 700; border-bottom: 1px solid #E2E8F0;">${condition || 'Good / Tested'}</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; vertical-align: top; border-bottom: 1px solid #E2E8F0;">
+              Issued Accessories:
+            </td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #2C3E50; font-weight: 600; border-bottom: 1px solid #E2E8F0;">
+              ${accessoriesList.length > 0
+                ? `<div style="display: flex; flex-direction: column; gap: 4px;">
+                    ${accessoriesList.map(item => `
+                      <div>
+                        <span style="color: #059669; font-weight: 800; margin-right: 6px;">[✓]</span>
+                        <span>${item}</span>
+                      </div>
+                    `).join('')}
+                   </div>`
+                : '<span style="color: #64748B; font-weight: normal; font-style: italic;">Standard Power Adapter</span>'
+              }
+            </td>
           </tr>
+
           <tr>
-            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">Date of Issue:</td>
-            <td style="padding: 9px 16px; font-size: 13px; color: #2C3E50; font-weight: 700; border-bottom: 1px solid #E2E8F0;">${issueDate || new Date().toLocaleDateString('en-IN')}</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">Date of Issuance:</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #2C3E50; font-weight: 600; border-bottom: 1px solid #E2E8F0;">${issueDate}</td>
           </tr>
           <tr>
             <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">Expected Return Date:</td>
-            <td style="padding: 9px 16px; font-size: 13px; color: #C2410C; font-weight: 800; border-bottom: 1px solid #E2E8F0;">${returnDueDisplay}</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #D9531E; font-weight: 700; border-bottom: 1px solid #E2E8F0;">${returnDueDisplay}</td>
           </tr>
-          ${department ? `
-          <tr>
-            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">Department:</td>
-            <td style="padding: 9px 16px; font-size: 12.5px; color: #2C3E50; font-weight: 600; border-bottom: 1px solid #E2E8F0;">${department}</td>
-          </tr>` : ''}
           ${notes ? `
           <tr>
             <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600;">Remarks / Notes:</td>
@@ -216,17 +349,27 @@ const generateIssuedEmailHtml = ({
 const generateReturnedEmailHtml = ({
   userName,
   employeeId,
+  rollNumber,
+  userRole = 'STUDENT',
+  courseBranch,
+  semesterYear,
   department,
   laptopModel,
   serialNumber,
   assetTag,
+  issueDate,
   returnDate,
+  duration,
   returnCondition,
   fineAmount,
   finePaid,
   returnedBy,
   notes,
 }) => {
+  const isStudent = String(userRole || '').toUpperCase().trim() === 'STUDENT';
+  const idValue = rollNumber || employeeId || 'N/A';
+  const durationText = duration || (issueDate && returnDate ? formatAllocationDuration(issueDate, returnDate) : 'Completed Custody Term');
+
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -241,17 +384,17 @@ const generateReturnedEmailHtml = ({
     <tr>
       <td style="height: 6px; background-color: #059669;"></td>
     </tr>
-    <!-- Header -->
+    <!-- Header (Light background for logo clarity with separation border) -->
     <tr>
-      <td style="background-color: #2C3E50; padding: 26px 22px; text-align: center;">
-        <img src="cid:ssismlogo" alt="SSISM Logo" style="height: 52px; width: auto; margin: 0 auto 12px auto; display: block;" />
-        <h1 style="margin: 0; font-size: 16px; font-weight: 800; color: #ffffff; letter-spacing: 0.4px; text-transform: uppercase; line-height: 1.4;">
+      <td style="background-color: #FFFFFF; padding: 26px 22px; text-align: center; border-bottom: 2px solid #D9531E;">
+        <img src="cid:ssismlogo" alt="SSISM Logo" style="height: 58px; width: auto; margin: 0 auto 12px auto; display: block;" />
+        <h1 style="margin: 0; font-size: 16px; font-weight: 800; color: #2C3E50; letter-spacing: 0.4px; text-transform: uppercase; line-height: 1.4;">
           Sant Singaji Institute of Science and Management
         </h1>
-        <p style="margin: 4px 0 0; font-size: 11.5px; color: #CBD5E1; font-weight: 500;">
+        <p style="margin: 4px 0 0; font-size: 11.5px; color: #64748B; font-weight: 600;">
           Sandalpur, Teh - Khategaon, Dist - Dewas, MP
         </p>
-        <div style="display: inline-block; margin-top: 10px; padding: 3px 10px; background-color: rgba(5, 150, 105, 0.2); border: 1px solid #059669; border-radius: 20px; font-size: 10.5px; font-weight: 700; color: #6EE7B7; letter-spacing: 1px; text-transform: uppercase;">
+        <div style="display: inline-block; margin-top: 10px; padding: 3px 12px; background-color: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 20px; font-size: 10.5px; font-weight: 700; color: #059669; letter-spacing: 0.8px; text-transform: uppercase;">
           IT Asset & Inventory Management System
         </div>
       </td>
@@ -271,77 +414,111 @@ const generateReturnedEmailHtml = ({
     <tr>
       <td style="padding: 26px 24px;">
         <p style="margin: 0 0 16px; font-size: 14px; line-height: 1.6; color: #2C3E50;">
-          Dear <strong>${userName}</strong>${employeeId ? ` (ID: <span style="font-family: monospace; font-weight: 700; color: #059669;">${employeeId}</span>)` : ''},
+          Dear <strong>${userName}</strong>,
         </p>
         <p style="margin: 0 0 20px; font-size: 13px; line-height: 1.6; color: #475569;">
           This official document certifies that the campus laptop computer allocated to your custody has been physically inspected, tested, and verified back into central institutional inventory.
         </p>
 
-        <!-- Return Details Card -->
+        <!-- Allocation Duration Highlight Box -->
+        <div style="margin-bottom: 20px; padding: 14px 18px; background-color: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 10px;">
+          <div style="font-size: 11px; font-weight: 800; color: #166534; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px;">
+            Total Custody Duration
+          </div>
+          <div style="font-size: 18px; font-weight: 900; color: #15803D;">
+            ${durationText}
+          </div>
+          ${issueDate && returnDate ? `
+          <div style="font-size: 11.5px; color: #166534; font-weight: 600; margin-top: 4px;">
+            Issued on ${issueDate} • Surrendered on ${returnDate}
+          </div>` : ''}
+        </div>
+
+        <!-- Recipient Information Card -->
         <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #F8F9FA; border: 1px solid #E2E8F0; border-radius: 10px; margin-bottom: 20px; overflow: hidden;">
           <tr>
             <td colspan="2" style="background-color: #EDF2F7; padding: 10px 16px; border-bottom: 1px solid #E2E8F0; font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; color: #2C3E50;">
-              Surrender & Inspection Verification Details
+              ${isStudent ? 'Student Clearance Profile' : 'Faculty / Staff Clearance Profile'}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; width: 40%; border-bottom: 1px solid #E2E8F0;">Full Name:</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #2C3E50; font-weight: 700; border-bottom: 1px solid #E2E8F0;">${userName}</td>
+          </tr>
+          <tr>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">
+              ${isStudent ? 'Roll Number:' : 'Employee / Staff ID:'}
+            </td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #059669; font-family: monospace; font-weight: 800; border-bottom: 1px solid #E2E8F0;">${idValue}</td>
+          </tr>
+          ${isStudent && (courseBranch || department) ? `
+          <tr>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">Course / Branch:</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #2C3E50; font-weight: 600; border-bottom: 1px solid #E2E8F0;">${courseBranch || department}</td>
+          </tr>` : ''}
+          ${isStudent && semesterYear ? `
+          <tr>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">Batch / Academic Year:</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #2C3E50; font-weight: 600; border-bottom: 1px solid #E2E8F0;">${semesterYear}</td>
+          </tr>` : ''}
+          <tr>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600;">Department:</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #2C3E50; font-weight: 600;">${department || 'General Campus'}</td>
+          </tr>
+        </table>
+
+        <!-- Return Inspection Details Card -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #F8F9FA; border: 1px solid #E2E8F0; border-radius: 10px; margin-bottom: 20px; overflow: hidden;">
+          <tr>
+            <td colspan="2" style="background-color: #EDF2F7; padding: 10px 16px; border-bottom: 1px solid #E2E8F0; font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; color: #2C3E50;">
+              Hardware & Surrender Verification Record
             </td>
           </tr>
           ${assetTag ? `
           <tr>
-            <td style="padding: 9px 16px; width: 38%; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">Asset Tag Number:</td>
-            <td style="padding: 9px 16px; width: 62%; font-size: 13px; color: #059669; font-weight: 800; font-family: monospace; border-bottom: 1px solid #E2E8F0;">
-              <span style="background-color: #ECFDF5; border: 1px solid #86EFAC; padding: 2px 8px; border-radius: 6px;">${assetTag}</span>
-            </td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; width: 40%; border-bottom: 1px solid #E2E8F0;">Asset Tag:</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #059669; font-family: monospace; font-weight: 800; border-bottom: 1px solid #E2E8F0;">${assetTag}</td>
           </tr>` : ''}
           <tr>
-            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">Device Make & Model:</td>
-            <td style="padding: 9px 16px; font-size: 13px; color: #2C3E50; font-weight: 700; border-bottom: 1px solid #E2E8F0;">${laptopModel || 'Campus Notebook'}</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">Laptop Model:</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #2C3E50; font-weight: 700; border-bottom: 1px solid #E2E8F0;">${laptopModel}</td>
           </tr>
           <tr>
-            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">Hardware Serial (S/N):</td>
-            <td style="padding: 9px 16px; font-size: 12.5px; color: #2C3E50; font-family: monospace; font-weight: 700; border-bottom: 1px solid #E2E8F0;">${serialNumber || 'N/A'}</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">Serial Number:</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #2C3E50; font-family: monospace; border-bottom: 1px solid #E2E8F0;">${serialNumber}</td>
           </tr>
           <tr>
-            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">Return Received Date:</td>
-            <td style="padding: 9px 16px; font-size: 13px; color: #2C3E50; font-weight: 700; border-bottom: 1px solid #E2E8F0;">${returnDate || new Date().toLocaleDateString('en-IN')}</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">Return Date:</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #2C3E50; font-weight: 600; border-bottom: 1px solid #E2E8F0;">${returnDate}</td>
           </tr>
           <tr>
-            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">Inspection Condition:</td>
-            <td style="padding: 9px 16px; font-size: 12.5px; color: #2C3E50; font-weight: 700; border-bottom: 1px solid #E2E8F0;">${returnCondition || 'Good / Normal'}</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">Return Condition:</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; font-weight: 700; border-bottom: 1px solid #E2E8F0; color: ${returnCondition === 'DAMAGED' ? '#DC2626' : '#059669'};">
+              ${returnCondition || 'GOOD (Inspection Passed)'}
+            </td>
           </tr>
+          ${Number(fineAmount) > 0 ? `
+          <tr>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">Damage / Fine Assessment:</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; font-weight: 700; border-bottom: 1px solid #E2E8F0; color: #DC2626;">
+              ₹${fineAmount} (${finePaid ? 'PAID / Cleared' : 'PENDING / Unpaid'})
+            </td>
+          </tr>` : ''}
           ${returnedBy ? `
           <tr>
-            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">Received & Verified By:</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">Received / Inspected By:</td>
             <td style="padding: 9px 16px; font-size: 12.5px; color: #2C3E50; font-weight: 600; border-bottom: 1px solid #E2E8F0;">${returnedBy}</td>
           </tr>` : ''}
-          <tr>
-            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600; border-bottom: 1px solid #E2E8F0;">Clearance Status:</td>
-            <td style="padding: 9px 16px; font-size: 13px; color: #059669; font-weight: 800; border-bottom: 1px solid #E2E8F0;">
-              ✓ NO OUTSTANDING DUES / FULLY RELEASED ${fineAmount > 0 ? `(Fine ₹${fineAmount} - ${finePaid ? 'PAID' : 'PENDING'})` : ''}
-            </td>
-          </tr>
           ${notes ? `
           <tr>
-            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600;">Inspection / Return Notes:</td>
+            <td style="padding: 9px 16px; font-size: 12.5px; color: #64748B; font-weight: 600;">Inspection Remarks:</td>
             <td style="padding: 9px 16px; font-size: 12px; color: #475569; font-style: italic;">${notes}</td>
           </tr>` : ''}
         </table>
 
-        <!-- Prominent Green Clearance Callout -->
-        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #F0FDF4; border: 1.5px solid #86EFAC; border-radius: 10px; padding: 16px; margin-bottom: 20px; text-align: center;">
-          <tr>
-            <td>
-              <div style="font-size: 13px; font-weight: 800; color: #166534; margin-bottom: 3px;">
-                Hardware Custody Record Closed
-              </div>
-              <div style="font-size: 12px; color: #15803D; line-height: 1.5;">
-                Your institutional hardware accountability for device <strong>${assetTag || serialNumber}</strong> has been successfully cleared in the central registry.
-              </div>
-            </td>
-          </tr>
-        </table>
-
-        <!-- Mandatory Institutional Liability Note -->
-        <div style="padding: 12px 16px; background-color: #F8FAFC; border-left: 4px solid #94A3B8; border-radius: 6px; font-size: 11.5px; color: #64748B; line-height: 1.5;">
-          "Note: You are solely responsible for the physical and technical integrity of the assigned asset during the allocation period. Any physical damage, loss, or unauthorized technical modification will attract appropriate institutional action."
+        <!-- Clearance Notice -->
+        <div style="margin-top: 18px; padding: 14px 18px; background-color: #ECFDF5; border-left: 4px solid #059669; border-radius: 6px; font-size: 12px; color: #065F46; line-height: 1.6;">
+          <strong>No-Dues Custody Clearance:</strong> The laptop hardware record has been closed in the SSISM central database. Your inventory profile is clear with respect to this asset. Please retain this email as proof of surrender for no-dues and semester clearance formalities.
         </div>
       </td>
     </tr>
@@ -355,7 +532,7 @@ const generateReturnedEmailHtml = ({
           Sant Singaji Institute of Science and Management, Sandalpur, Teh - Khategaon, Dist - Dewas, MP
         </div>
         <div style="font-size: 11px; color: #64748B; margin-top: 3px;">
-          Contact: <a href="mailto:computerlab@ssism.org" style="color: #059669; text-decoration: none; font-weight: 600;">computerlab@ssism.org</a>
+          Contact: <a href="mailto:computerlab@ssism.org" style="color: #D9531E; text-decoration: none; font-weight: 600;">computerlab@ssism.org</a>
         </div>
         <div style="margin-top: 10px; font-size: 10px; color: #94A3B8; border-top: 1px dashed #CBD5E1; padding-top: 8px;">
           Automated institutional clearance receipt dispatched via SSISM-IMS.
@@ -370,30 +547,28 @@ const generateReturnedEmailHtml = ({
 
 /**
  * Asynchronous function: Send Laptop Issued Email
- * Only sends to Faculty / Employees / Staff. Skips for Student role.
+ * Sends official notification to Students, Faculty, and Staff.
  */
 export const sendLaptopIssuedEmail = async ({
   to,
   userName,
   employeeId,
+  rollNumber,
+  userRole = 'STUDENT',
+  courseBranch,
+  semesterYear,
   department,
   laptopModel,
   serialNumber,
   assetTag,
   condition,
   chargerSerial,
+  accessories = [],
   issueDate,
   expectedReturnDate,
   dueDate,
-  userRole,
   notes,
 }) => {
-  // Check user role: Skip students
-  if (userRole && !isFacultyOrEmployee(userRole)) {
-    console.log(`Email skipped for STUDENT role: ${to || userName || 'Unknown Student'}`);
-    return { sent: false, skipped: true, reason: 'STUDENT_ROLE_SKIPPED' };
-  }
-
   if (!to) {
     console.warn(`[emailService] Cannot send issue email: No recipient email address provided for ${userName}`);
     return { sent: false, error: 'NO_RECIPIENT_EMAIL' };
@@ -404,14 +579,19 @@ export const sendLaptopIssuedEmail = async ({
     const fromAddress = process.env.SMTP_FROM || `"Sant Singaji Institute of Science and Management - IT Asset Management" <${process.env.SMTP_USER || 'computerlab@ssism.org'}>`;
 
     const html = generateIssuedEmailHtml({
-      userName: userName || 'Faculty / Staff Member',
+      userName: userName || 'Recipient',
       employeeId,
+      rollNumber,
+      userRole,
+      courseBranch,
+      semesterYear,
       department,
       laptopModel: laptopModel || 'Campus Laptop',
       serialNumber: serialNumber || 'N/A',
       assetTag: assetTag || '',
       condition,
       chargerSerial,
+      accessories,
       issueDate: issueDate || new Date().toLocaleDateString('en-IN'),
       expectedReturnDate,
       dueDate,
@@ -435,40 +615,39 @@ export const sendLaptopIssuedEmail = async ({
       attachments,
     });
 
-    console.log("Email notification sent to Faculty:", to, "MessageId:", info.messageId);
+    console.log(`[emailService] Issue email sent to ${userRole}: ${to} (MessageId: ${info.messageId})`);
     return { sent: true, messageId: info.messageId, recipient: to };
   } catch (err) {
-    console.error("Failed to send email to Faculty:", to, err.message);
+    console.error(`[emailService] Failed to send issue email to ${to}:`, err.message);
     return { sent: false, error: err.message, recipient: to };
   }
 };
 
 /**
  * Asynchronous function: Send Laptop Returned Email
- * Only sends to Faculty / Employees / Staff. Skips for Student role.
+ * Sends official notification to Students, Faculty, and Staff.
  */
 export const sendLaptopReturnedEmail = async ({
   to,
   userName,
   employeeId,
+  rollNumber,
+  userRole = 'STUDENT',
+  courseBranch,
+  semesterYear,
   department,
   laptopModel,
   serialNumber,
   assetTag,
+  issueDate,
   returnDate,
+  duration,
   returnCondition,
   fineAmount,
   finePaid,
   returnedBy,
-  userRole,
   notes,
 }) => {
-  // Check user role: Skip students
-  if (userRole && !isFacultyOrEmployee(userRole)) {
-    console.log(`Email skipped for STUDENT role: ${to || userName || 'Unknown Student'}`);
-    return { sent: false, skipped: true, reason: 'STUDENT_ROLE_SKIPPED' };
-  }
-
   if (!to) {
     console.warn(`[emailService] Cannot send return email: No recipient email address provided for ${userName}`);
     return { sent: false, error: 'NO_RECIPIENT_EMAIL' };
@@ -479,13 +658,19 @@ export const sendLaptopReturnedEmail = async ({
     const fromAddress = process.env.SMTP_FROM || `"Sant Singaji Institute of Science and Management - IT Asset Management" <${process.env.SMTP_USER || 'computerlab@ssism.org'}>`;
 
     const html = generateReturnedEmailHtml({
-      userName: userName || 'Faculty / Staff Member',
+      userName: userName || 'Recipient',
       employeeId,
+      rollNumber,
+      userRole,
+      courseBranch,
+      semesterYear,
       department,
       laptopModel: laptopModel || 'Campus Laptop',
       serialNumber: serialNumber || 'N/A',
       assetTag: assetTag || '',
+      issueDate,
       returnDate: returnDate || new Date().toLocaleDateString('en-IN'),
+      duration,
       returnCondition,
       fineAmount,
       finePaid,
@@ -510,10 +695,10 @@ export const sendLaptopReturnedEmail = async ({
       attachments,
     });
 
-    console.log("Email notification sent to Faculty:", to, "MessageId:", info.messageId);
+    console.log(`[emailService] Return email sent to ${userRole}: ${to} (MessageId: ${info.messageId})`);
     return { sent: true, messageId: info.messageId, recipient: to };
   } catch (err) {
-    console.error("Failed to send email to Faculty:", to, err.message);
+    console.error(`[emailService] Failed to send return email to ${to}:`, err.message);
     return { sent: false, error: err.message, recipient: to };
   }
 };

@@ -2,7 +2,7 @@ import * as allocationService from '../services/allocation.service.js';
 import {
   sendLaptopIssuedEmail,
   sendLaptopReturnedEmail,
-  isFacultyOrEmployee,
+  formatAllocationDuration,
 } from '../utils/emailService.js';
 
 /**
@@ -20,7 +20,7 @@ export const getAllocations = async (req, res, next) => {
 /**
  * Controller: Create and issue a new hardware allocation to a recipient.
  * Enforces Zero-Conflict concurrency checks and Software License Fee verification.
- * Step 3: Sends email ONLY to Faculty/Employees upon laptop issue.
+ * Dispatches official email notification to both Students and Faculty.
  */
 export const createAllocation = async (req, res, next) => {
   try {
@@ -31,23 +31,27 @@ export const createAllocation = async (req, res, next) => {
       ipAddress,
     });
 
-    // Step 3 Filter: Check user role/type
     const recipient = allocation.recipient;
-    const userRole = recipient?.role;
+    const userRole = recipient?.role || 'STUDENT';
     const asset = allocation.asset;
 
-    if (isFacultyOrEmployee(userRole)) {
-      // Send asynchronously without blocking the primary HTTP response
+    // Send email notification to all recipients (Students, Faculty, Staff)
+    if (recipient?.email) {
       sendLaptopIssuedEmail({
         to: recipient.email,
         userName: recipient.name,
+        rollNumber: recipient.rollNumberOrEmpId,
         employeeId: recipient.rollNumberOrEmpId,
-        department: recipient.department?.name || recipient.branch || 'SSISM Faculty',
+        userRole,
+        courseBranch: recipient.branch || recipient.department?.name || recipient.track,
+        semesterYear: recipient.batchYear ? `Batch ${recipient.batchYear}` : recipient.section,
+        department: recipient.department?.name || recipient.branch || (userRole === 'STUDENT' ? 'Student Body' : 'SSISM Faculty'),
         laptopModel: `${asset.make} ${asset.model}`.trim(),
         serialNumber: asset.serialNumber,
         assetTag: asset.assetTag,
         condition: allocation.issueCondition || asset.condition,
         chargerSerial: asset.chargerSerial,
+        accessories: allocation.accessories,
         issuedBy: allocation.issuedBy?.name,
         issueDate: allocation.issuedAt ? new Date(allocation.issuedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : undefined,
         expectedReturnDate: (allocation.expectedReturnDate || allocation.dueDate)
@@ -56,13 +60,12 @@ export const createAllocation = async (req, res, next) => {
         dueDate: (allocation.expectedReturnDate || allocation.dueDate)
           ? new Date(allocation.expectedReturnDate || allocation.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
           : undefined,
-        userRole,
         notes: allocation.notes,
       }).catch((err) => {
-        console.error("Failed to send email to Faculty:", recipient.email, err.message);
+        console.error("Failed to send issue email to:", recipient.email, err.message);
       });
     } else {
-      console.log("Email skipped for STUDENT role:", recipient?.email || recipient?.name || 'Unknown Student');
+      console.warn("Issue email skipped: No recipient email address for", recipient?.name);
     }
 
     res.status(201).json({
@@ -77,7 +80,7 @@ export const createAllocation = async (req, res, next) => {
 
 /**
  * Controller: Process return of an allocated asset, record condition, and update status.
- * Step 3: Sends email ONLY to Faculty/Employees upon laptop return.
+ * Calculates elapsed custody duration and dispatches official return email exactly once.
  */
 export const returnAllocation = async (req, res, next) => {
   try {
@@ -94,39 +97,48 @@ export const returnAllocation = async (req, res, next) => {
       ipAddress,
     });
 
-    // Step 3 Filter: Check user role/type
     const recipient = allocation.recipient;
-    const userRole = recipient?.role;
+    const userRole = recipient?.role || 'STUDENT';
     const asset = allocation.asset;
 
-    if (isFacultyOrEmployee(userRole)) {
-      // Send asynchronously without blocking the primary HTTP response
+    // Calculate total custody duration between issueDate and returnDate
+    const durationText = formatAllocationDuration(allocation.issuedAt, allocation.returnedAt || new Date());
+
+    // Send return clearance email exactly once (unless caller explicitly opted out)
+    const shouldSendEmail = req.body.sendEmail !== false;
+
+    if (shouldSendEmail && recipient?.email) {
       sendLaptopReturnedEmail({
         to: recipient.email,
         userName: recipient.name,
+        rollNumber: recipient.rollNumberOrEmpId,
         employeeId: recipient.rollNumberOrEmpId,
-        department: recipient.department?.name || recipient.branch || 'SSISM Faculty',
+        userRole,
+        courseBranch: recipient.branch || recipient.department?.name || recipient.track,
+        semesterYear: recipient.batchYear ? `Batch ${recipient.batchYear}` : recipient.section,
+        department: recipient.department?.name || recipient.branch || (userRole === 'STUDENT' ? 'Student Body' : 'SSISM Faculty'),
         laptopModel: `${asset.make} ${asset.model}`.trim(),
         serialNumber: asset.serialNumber,
         assetTag: asset.assetTag,
-        returnDate: allocation.returnedAt ? new Date(allocation.returnedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : undefined,
+        issueDate: allocation.issuedAt ? new Date(allocation.issuedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : undefined,
+        returnDate: allocation.returnedAt ? new Date(allocation.returnedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+        duration: durationText,
         returnCondition: allocation.returnCondition,
         fineAmount: allocation.fineAmount,
         finePaid: allocation.finePaid,
         returnedBy: allocation.returnedBy?.name,
-        userRole,
         notes: req.body.notes || allocation.notes,
       }).catch((err) => {
-        console.error("Failed to send email to Faculty:", recipient.email, err.message);
+        console.error("Failed to send return clearance email to:", recipient.email, err.message);
       });
-    } else {
-      console.log("Email skipped for STUDENT role:", recipient?.email || recipient?.name || 'Unknown Student');
+    } else if (!recipient?.email) {
+      console.warn("Return email skipped: No recipient email address for", recipient?.name);
     }
 
     res.status(200).json({
       success: true,
       message: 'Asset returned and logged successfully',
-      data: { allocation },
+      data: { allocation, duration: durationText },
     });
   } catch (err) {
     next(err);
@@ -159,48 +171,71 @@ export const deleteAllocation = async (req, res, next) => {
 };
 
 /**
- * Controller: Manually dispatch or re-send email receipt to recipient.
- * Enforces role restriction: Emails ONLY sent to Faculty/Employees.
+ * Controller: Manually dispatch or re-send email receipt to recipient on demand.
+ * Delivers official notice to both Students and Faculty.
  */
 export const sendEmailReceipt = async (req, res, next) => {
   try {
     const allocation = await allocationService.getAllocationReceiptData(req.params.id);
     const recipient = allocation.recipient;
-    const userRole = recipient?.role;
+    const userRole = recipient?.role || 'STUDENT';
     const asset = allocation.asset;
 
-    if (!isFacultyOrEmployee(userRole)) {
-      console.log("Email skipped for STUDENT role:", recipient?.email || recipient?.name || 'Unknown Student');
-      return res.status(200).json({
-        success: true,
-        message: 'Email notification skipped: Policy applies only to Faculty/Employees',
-        data: { skipped: true, role: userRole },
+    if (!recipient?.email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Recipient does not have a registered email address',
       });
     }
 
     let result;
     if (allocation.status === 'RETURNED') {
+      const durationText = formatAllocationDuration(allocation.issuedAt, allocation.returnedAt || new Date());
       result = await sendLaptopReturnedEmail({
         to: recipient.email,
         userName: recipient.name,
+        rollNumber: recipient.rollNumberOrEmpId,
+        employeeId: recipient.rollNumberOrEmpId,
+        userRole,
+        courseBranch: recipient.branch || recipient.department?.name || recipient.track,
+        semesterYear: recipient.batchYear ? `Batch ${recipient.batchYear}` : recipient.section,
+        department: recipient.department?.name || recipient.branch || (userRole === 'STUDENT' ? 'Student Body' : 'SSISM Faculty'),
         laptopModel: `${asset.make} ${asset.model}`.trim(),
         serialNumber: asset.serialNumber,
         assetTag: asset.assetTag,
-        returnDate: allocation.returnedAt ? new Date(allocation.returnedAt).toLocaleDateString('en-IN') : undefined,
+        issueDate: allocation.issuedAt ? new Date(allocation.issuedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : undefined,
+        returnDate: allocation.returnedAt ? new Date(allocation.returnedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+        duration: durationText,
         returnCondition: allocation.returnCondition,
-        userRole,
+        fineAmount: allocation.fineAmount,
+        finePaid: allocation.finePaid,
+        returnedBy: allocation.returnedBy?.name,
         notes: allocation.notes,
       });
     } else {
       result = await sendLaptopIssuedEmail({
         to: recipient.email,
         userName: recipient.name,
+        rollNumber: recipient.rollNumberOrEmpId,
+        employeeId: recipient.rollNumberOrEmpId,
+        userRole,
+        courseBranch: recipient.branch || recipient.department?.name || recipient.track,
+        semesterYear: recipient.batchYear ? `Batch ${recipient.batchYear}` : recipient.section,
+        department: recipient.department?.name || recipient.branch || (userRole === 'STUDENT' ? 'Student Body' : 'SSISM Faculty'),
         laptopModel: `${asset.make} ${asset.model}`.trim(),
         serialNumber: asset.serialNumber,
         assetTag: asset.assetTag,
-        issueDate: allocation.issuedAt ? new Date(allocation.issuedAt).toLocaleDateString('en-IN') : undefined,
-        dueDate: allocation.dueDate ? new Date(allocation.dueDate).toLocaleDateString('en-IN') : undefined,
-        userRole,
+        condition: allocation.issueCondition || asset.condition,
+        chargerSerial: asset.chargerSerial,
+        accessories: allocation.accessories,
+        issuedBy: allocation.issuedBy?.name,
+        issueDate: allocation.issuedAt ? new Date(allocation.issuedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : undefined,
+        expectedReturnDate: (allocation.expectedReturnDate || allocation.dueDate)
+          ? new Date(allocation.expectedReturnDate || allocation.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+          : undefined,
+        dueDate: (allocation.expectedReturnDate || allocation.dueDate)
+          ? new Date(allocation.expectedReturnDate || allocation.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+          : undefined,
         notes: allocation.notes,
       });
     }
@@ -208,7 +243,7 @@ export const sendEmailReceipt = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: result.sent
-        ? `Email notification sent to Faculty: ${recipient.email}`
+        ? `Email notification sent to ${recipient.email}`
         : `Email notification processed for ${recipient.name} (${result.error || 'Simulated'})`,
       data: result,
     });

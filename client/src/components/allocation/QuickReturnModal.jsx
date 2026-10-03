@@ -156,17 +156,11 @@ export const QuickReturnModal = ({
         fineReason: parsedAmount > 0 ? (finalFineReason || 'Laptop inspection damage charge') : null,
         finePaid: parsedAmount > 0 ? finePaid : false,
         finePaymentMode: parsedAmount > 0 ? (finePaid ? finePaymentMode : 'PENDING') : null,
+        sendEmail: sendEmailReceipt,
       };
 
       const res = await api.put(`/allocations/${selectedAllocation.id}/return`, payload);
       const returnedData = res.data.data.allocation;
-
-      // On-demand email receipt confirmation if toggled
-      if (sendEmailReceipt) {
-        api.post(`/allocations/${selectedAllocation.id}/send-email`).catch((e) => {
-          console.warn('Auto-email receipt dispatch notice:', e.message);
-        });
-      }
 
       setCompletedReturn(returnedData);
       if (onSuccess) {

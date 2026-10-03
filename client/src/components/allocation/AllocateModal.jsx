@@ -35,6 +35,15 @@ export const AllocateModal = ({ isOpen, onClose, selectedAsset = null, onSuccess
   const [notes, setNotes] = useState('');
   const [overrideWarning, setOverrideWarning] = useState(false);
 
+  // Handover Accessory Checklist state
+  const [accessories, setAccessories] = useState({
+    charger: true,
+    bag: true,
+    mouse: false,
+    other: false,
+    otherText: '',
+  });
+
   // Search & filter states inside modal
   const [recipientSearch, setRecipientSearch] = useState('');
   const [assetSearch, setAssetSearch] = useState('');
@@ -57,6 +66,15 @@ export const AllocateModal = ({ isOpen, onClose, selectedAsset = null, onSuccess
       setOverrideWarning(false);
       setRecipientSearch('');
       setAssetSearch('');
+
+      // Default accessories checklist
+      setAccessories({
+        charger: true,
+        bag: true,
+        mouse: false,
+        other: false,
+        otherText: '',
+      });
 
       // Keep Expected Return Date DISABLED by default
       setHasExpectedReturnDate(false);
@@ -203,11 +221,22 @@ export const AllocateModal = ({ isOpen, onClose, selectedAsset = null, onSuccess
 
     try {
       const finalReturnDate = (hasExpectedReturnDate && expectedReturnDate) ? expectedReturnDate : null;
+
+      // Construct accessories checklist array
+      const selectedAccessories = [];
+      if (accessories.charger) selectedAccessories.push('Charger / Adapter');
+      if (accessories.bag) selectedAccessories.push('Laptop Bag');
+      if (accessories.mouse) selectedAccessories.push('External Mouse');
+      if (accessories.other && accessories.otherText.trim()) {
+        selectedAccessories.push(accessories.otherText.trim());
+      }
+
       const payload = {
         assetId: Number(assetId),
         recipientId: Number(recipientId),
         expectedReturnDate: finalReturnDate,
         dueDate: finalReturnDate,
+        accessories: selectedAccessories,
         issueCondition,
         notes: notes || null,
         overrideUnpaidFeeWarning: overrideWarning,
@@ -439,10 +468,73 @@ export const AllocateModal = ({ isOpen, onClose, selectedAsset = null, onSuccess
             </div>
           </div>
 
-          {/* 4. Notes */}
+          {/* 4. Handover Accessory Checklist */}
+          <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                4. Handover Accessory Checklist
+              </label>
+              <span className="text-[11px] text-slate-500 font-medium">Select issued accessories</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5 text-xs">
+              <label className="flex items-center space-x-2.5 cursor-pointer bg-white p-2 rounded-lg border border-slate-200 hover:border-slate-300 transition">
+                <input
+                  type="checkbox"
+                  checked={accessories.charger}
+                  onChange={(e) => setAccessories((prev) => ({ ...prev, charger: e.target.checked }))}
+                  className="w-4 h-4 text-[#D9531E] rounded border-slate-300 focus:ring-[#D9531E]"
+                />
+                <span className="font-semibold text-slate-800">Charger / Adapter</span>
+              </label>
+
+              <label className="flex items-center space-x-2.5 cursor-pointer bg-white p-2 rounded-lg border border-slate-200 hover:border-slate-300 transition">
+                <input
+                  type="checkbox"
+                  checked={accessories.bag}
+                  onChange={(e) => setAccessories((prev) => ({ ...prev, bag: e.target.checked }))}
+                  className="w-4 h-4 text-[#D9531E] rounded border-slate-300 focus:ring-[#D9531E]"
+                />
+                <span className="font-semibold text-slate-800">Laptop Bag</span>
+              </label>
+
+              <label className="flex items-center space-x-2.5 cursor-pointer bg-white p-2 rounded-lg border border-slate-200 hover:border-slate-300 transition">
+                <input
+                  type="checkbox"
+                  checked={accessories.mouse}
+                  onChange={(e) => setAccessories((prev) => ({ ...prev, mouse: e.target.checked }))}
+                  className="w-4 h-4 text-[#D9531E] rounded border-slate-300 focus:ring-[#D9531E]"
+                />
+                <span className="font-semibold text-slate-800">External Mouse</span>
+              </label>
+
+              <label className="flex items-center space-x-2.5 cursor-pointer bg-white p-2 rounded-lg border border-slate-200 hover:border-slate-300 transition">
+                <input
+                  type="checkbox"
+                  checked={accessories.other}
+                  onChange={(e) => setAccessories((prev) => ({ ...prev, other: e.target.checked }))}
+                  className="w-4 h-4 text-[#D9531E] rounded border-slate-300 focus:ring-[#D9531E]"
+                />
+                <span className="font-semibold text-slate-800">Other</span>
+              </label>
+            </div>
+
+            {accessories.other && (
+              <div className="pt-1">
+                <input
+                  type="text"
+                  placeholder="Specify other accessory (e.g. HDMI Cable, LAN Adapter, Stylus)..."
+                  value={accessories.otherText}
+                  onChange={(e) => setAccessories((prev) => ({ ...prev, otherText: e.target.value }))}
+                  className="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs focus:border-[#D9531E] focus:ring-1 focus:ring-[#D9531E] outline-none bg-white"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* 5. Remarks */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-              Allocation Remarks / Accessories Handed Over
+              5. Allocation Remarks (Optional)
             </label>
             <textarea
               rows="2"
