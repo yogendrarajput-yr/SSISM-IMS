@@ -24,9 +24,13 @@ enum AcquisitionSource {
 
 enum AssetCategory {
   LAPTOP
-  ROUTER
-  CCTV
+  WHITEBOARD_PANEL
   SMART_TV
+  ROUTER
+  AIR_FIBER
+  PRINTER
+  MONITOR
+  CCTV
   INTERACTIVE_WHITEBOARD
   PERIPHERAL
   OTHER
@@ -161,6 +165,9 @@ model User {
   verifiedAssets          Asset[]            @relation("AssetVerifier")
   conductedPhysicalAudits PhysicalAuditLog[] @relation("PhysicalAuditsConducted")
 
+  // AirFiber / Router recharges logged by this staff/admin
+  loggedRecharges         RechargeHistory[]  @relation("RechargesLogged")
+
   @@index([role])
   @@index([departmentId])
   @@index([rollNumberOrEmpId])
@@ -229,17 +236,37 @@ model Asset {
   allocations       Allocation[]
   maintenanceLogs   MaintenanceLog[]
   physicalAudits    PhysicalAuditLog[]
+  rechargeHistory   RechargeHistory[]
+
+  // Category-specific metadata fields
+  modelNumber       String?           // General: OEM / Model number
+  location          String?           // Room/Lab/Office e.g. "Room 204", "Lab 2", "Seminar Hall"
+
+  // AirFiber / Routers Specific
+  simNumber         String?           // SIM card identifier / ICCID
+  serviceProvider   String?           // e.g., "JIO", "AIRTEL", "OTHER", "BSNL", "VI"
+  planDetails       String?           // e.g., "100 Mbps Unlimited Annual Plan"
+  lastRechargeDate  DateTime?
+  rechargeExpiryDate DateTime?
+  monthlyCost       Decimal?          @db.Decimal(10, 2)
+
+  // Printers / Monitors / Panels Specific
+  ipAddress         String?           // Network IP address for Printers/Smart Devices
+  screenSize        String?           // Screen Size e.g., "65 inch", "75 inch", "27 inch"
+  inkCartridgeType  String?           // Cartridge / Toner model e.g., "HP 88A", "Canon 057"
 
   @@index([status])
   @@index([category])
   @@index([condition])
   @@index([make])
   @@index([departmentId])
+  @@index([location])
   @@index([acquisitionSource])
   @@index([donorId])
   @@index([isArchived])
   @@index([lastVerifiedAt])
   @@index([auditStatus])
+  @@index([rechargeExpiryDate])
 }
 
 /// Immutable Hardware Allocation Ledger tracking distribution to Students & Faculty
@@ -366,4 +393,32 @@ model PhysicalAuditLog {
   @@index([auditStatus])
   @@index([verifiedAt])
 }
+
+/// Financial and operational audit trail for recurring AirFiber, SIM, and Router recharges
+model RechargeHistory {
+  id              Int       @id @default(autoincrement())
+  assetId         Int
+  asset           Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  
+  amount          Decimal   @db.Decimal(10, 2)
+  validityDays    Int       @default(30)
+  rechargeDate    DateTime  @default(now())
+  newExpiryDate   DateTime
+  transactionId   String?   // Transaction ID or Receipt No
+  paymentMode     String?   @default("UPI") // UPI, NET_BANKING, CORPORATE_CARD, CASH
+  serviceProvider String?   // JIO, AIRTEL, OTHER
+  planDetails     String?
+  notes           String?   @db.Text
+  
+  createdById     Int?
+  createdBy       User?     @relation("RechargesLogged", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([assetId])
+  @@index([rechargeDate])
+  @@index([newExpiryDate])
+}
+
 

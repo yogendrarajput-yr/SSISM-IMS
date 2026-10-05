@@ -53,6 +53,14 @@ export const Donors = () => {
   const [limit, setLimit] = useState(15);
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
 
+  // On-page Tab & Filter State for Donors & Purchases
+  const [activeView, setActiveView] = useState('donors'); // 'donors' | 'donated' | 'purchased' | 'all'
+  const [matchingAssets, setMatchingAssets] = useState([]);
+  const [assetLoading, setAssetLoading] = useState(false);
+  const [assetSearch, setAssetSearch] = useState('');
+  const [assetPage, setAssetPage] = useState(1);
+  const [assetPagination, setAssetPagination] = useState({ total: 0, totalPages: 1 });
+
   const [visibleColumns, setVisibleColumns] = useState(() => {
     try {
       const saved = localStorage.getItem('col_pref_donors');
@@ -81,8 +89,35 @@ export const Donors = () => {
   });
 
   const debouncedSearch = useDebounce(search, 300);
+  const debouncedAssetSearch = useDebounce(assetSearch, 300);
   const { isStaff, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
+
+  const fetchMatchingAssets = async () => {
+    setAssetLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (activeView === 'donated') params.append('acquisitionSource', 'DONATED');
+      if (activeView === 'purchased') params.append('acquisitionSource', 'PURCHASED');
+      if (debouncedAssetSearch.trim()) params.append('search', debouncedAssetSearch.trim());
+      params.append('page', String(assetPage));
+      params.append('limit', '15');
+
+      const res = await api.get(`/assets?${params.toString()}`);
+      setMatchingAssets(res.data?.data?.assets || []);
+      setAssetPagination(res.data?.data?.pagination || { total: 0, totalPages: 1 });
+    } catch (err) {
+      console.error('Failed to load matching fleet assets:', err);
+    } finally {
+      setAssetLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeView !== 'donors') {
+      fetchMatchingAssets();
+    }
+  }, [activeView, debouncedAssetSearch, assetPage]);
 
   const fetchDonors = async () => {
     setLoading(true);
@@ -197,21 +232,25 @@ export const Donors = () => {
               className="px-4 py-2 rounded-xl bg-[#F26522] hover:bg-orange-600 text-white font-bold text-xs flex items-center space-x-1.5 transition shadow-md shadow-orange-500/25 self-start sm:self-auto"
             >
               <Plus className="w-4 h-4" />
-              <span>+ Register Donor</span>
+              <span>Register Donor</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* Analytics KPI Metric Cards (Unified Master StatCard Design) */}
+      {/* Analytics KPI Metric Cards (Unified Master StatCard Design - Interactive Same-Page Filters) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Donated Laptops"
           value={stats.totalDonatedLaptops}
           icon={Gift}
           color="purple"
-          subtitle="View in Inventory"
-          onClick={() => navigate('/inventory?isDonated=true')}
+          subtitle="Filter Donated On Page"
+          active={activeView === 'donated'}
+          onClick={() => {
+            setActiveView('donated');
+            setAssetPage(1);
+          }}
         />
 
         <StatCard
@@ -219,8 +258,12 @@ export const Donors = () => {
           value={stats.totalPurchasedLaptops}
           icon={Building2}
           color="orange"
-          subtitle="View in Inventory"
-          onClick={() => navigate('/inventory?isDonated=false')}
+          subtitle="Filter Purchased On Page"
+          active={activeView === 'purchased'}
+          onClick={() => {
+            setActiveView('purchased');
+            setAssetPage(1);
+          }}
         />
 
         <StatCard
@@ -229,7 +272,9 @@ export const Donors = () => {
           icon={HeartHandshake}
           color="green"
           subtitle="Active Contributors"
+          active={activeView === 'donors'}
           onClick={() => {
+            setActiveView('donors');
             setSearch('');
             setPage(1);
           }}
@@ -240,8 +285,12 @@ export const Donors = () => {
           value={stats.totalLaptops}
           icon={Laptop}
           color="blue"
-          subtitle="All Campus Laptops"
-          onClick={() => navigate('/inventory')}
+          subtitle="Filter All Fleet On Page"
+          active={activeView === 'all'}
+          onClick={() => {
+            setActiveView('all');
+            setAssetPage(1);
+          }}
         />
       </div>
 
@@ -271,161 +320,354 @@ export const Donors = () => {
         </div>
       </div>
 
-      {/* Filter and Search Bar: relative z-10 for clean popover layering */}
-      <div className="relative z-10 bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row gap-2.5">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search donors by representative name, organization, email, or phone..."
-            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 focus:border-[#F26522] focus:ring-2 focus:ring-orange-500/20 outline-none"
-          />
-        </div>
-      </div>
-
-      {/* Donors Table Container */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-        {loading ? (
-          <div className="p-12 text-center text-slate-400 text-xs font-medium">
-            <div className="w-8 h-8 border-3 border-orange-200 border-t-[#F26522] rounded-full animate-spin mx-auto mb-2.5" />
-            Loading donors directory...
-          </div>
-        ) : donors.length === 0 ? (
-          <div className="p-12 text-center text-slate-400 text-xs font-medium">
-            No donor organizations found matching your search.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-[10.5px] font-bold uppercase tracking-wider text-slate-500">
-                  {visibleColumns.includes('contact') && <th className="py-2.5 px-3">Representative / Contact</th>}
-                  {visibleColumns.includes('organization') && <th className="py-2.5 px-3">Organization / Entity</th>}
-                  {visibleColumns.includes('details') && <th className="py-2.5 px-3">Contact Details</th>}
-                  {visibleColumns.includes('donationDate') && <th className="py-2.5 px-3">Donation Date</th>}
-                  {visibleColumns.includes('donatedLaptops') && <th className="py-2.5 px-3">Donated Laptops</th>}
-                  {visibleColumns.includes('actions') && (
-                    <th className="py-2.5 px-3 text-right whitespace-nowrap">Actions</th>
-                  )}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-xs">
-                {donors.map((donor) => (
-                  <tr key={donor.id} className="hover:bg-orange-50/20 transition-colors">
-                    {/* Representative Name */}
-                    {visibleColumns.includes('contact') && (
-                      <td className="py-2.5 px-3">
-                        <div className="font-bold text-slate-900">{donor.name}</div>
-                        {donor.notes && <div className="text-[10px] text-slate-400 truncate max-w-xs">{donor.notes}</div>}
-                      </td>
-                    )}
-
-                    {/* Organization */}
-                    {visibleColumns.includes('organization') && (
-                      <td className="py-2.5 px-3">
-                        <div className="font-semibold text-slate-800">{donor.organization || 'Individual Donor'}</div>
-                        {donor.address && <div className="text-[10px] text-slate-400 truncate max-w-xs">{donor.address}</div>}
-                      </td>
-                    )}
-
-                    {/* Contact details */}
-                    {visibleColumns.includes('details') && (
-                      <td className="py-2.5 px-3 space-y-0.5">
-                        {donor.email && (
-                          <div className="flex items-center space-x-1.5 text-slate-600">
-                            <Mail className="w-3.5 h-3.5 text-slate-400" />
-                            <span>{donor.email}</span>
-                          </div>
-                        )}
-                        {donor.phone && (
-                          <div className="flex items-center space-x-1.5 text-slate-600">
-                            <Phone className="w-3.5 h-3.5 text-slate-400" />
-                            <span>{donor.phone}</span>
-                          </div>
-                        )}
-                      </td>
-                    )}
-
-                    {/* Donation Date */}
-                    {visibleColumns.includes('donationDate') && (
-                      <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">
-                        <div className="flex items-center space-x-1">
-                          <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                          <span>{donor.donationDate ? new Date(donor.donationDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}</span>
-                        </div>
-                      </td>
-                    )}
-
-                    {/* Donated Laptops Count Badge */}
-                    {visibleColumns.includes('donatedLaptops') && (
-                      <td className="py-3 px-4">
-                        <button
-                          onClick={() => handleViewDonatedAssets(donor)}
-                          className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 font-bold text-xs transition"
-                          title="View list of laptops donated by this partner"
-                        >
-                          <Gift className="w-3.5 h-3.5 text-purple-600" />
-                          <span>{donor._count?.assets || 0} Laptops</span>
-                          <ExternalLink className="w-3 h-3 ml-0.5 text-purple-500" />
-                        </button>
-                      </td>
-                    )}
-
-                    {/* Actions */}
-                    {visibleColumns.includes('actions') && (
-                      <td className="py-3 px-4 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end space-x-1.5 flex-nowrap">
-                          <button
-                            onClick={() => handleViewDonatedAssets(donor)}
-                            title="View Donated Laptops"
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-purple-600 hover:bg-purple-50 transition"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          {isStaff && (
-                            <button
-                              onClick={() => handleOpenEdit(donor)}
-                              title="Edit Donor Profile"
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-[#F26522] hover:bg-orange-50 transition"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                          )}
-                          {isSuperAdmin && (
-                            <button
-                              onClick={() => handleDelete(donor.id, donor.name)}
-                              title="Remove Donor"
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* Universal Pagination Toolbar with Limit Selector */}
-        <Pagination
-          page={page}
-          totalPages={pagination.totalPages}
-          total={pagination.total}
-          limit={limit}
-          onPageChange={setPage}
-          onLimitChange={(newLimit) => {
-            setLimit(newLimit);
+      {/* Dynamic View Navigation Tabs */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3">
+        <button
+          type="button"
+          onClick={() => {
+            setActiveView('donors');
             setPage(1);
           }}
-          itemName="donors"
-        />
+          className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            activeView === 'donors'
+              ? 'bg-[#F26522] text-white shadow-xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          <HeartHandshake className="w-3.5 h-3.5" />
+          <span>Donors Directory ({stats.totalDonors})</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setActiveView('donated');
+            setAssetPage(1);
+          }}
+          className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            activeView === 'donated'
+              ? 'bg-purple-600 text-white shadow-xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          <Gift className="w-3.5 h-3.5" />
+          <span>Donated Laptops ({stats.totalDonatedLaptops})</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setActiveView('purchased');
+            setAssetPage(1);
+          }}
+          className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            activeView === 'purchased'
+              ? 'bg-orange-600 text-white shadow-xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          <Building2 className="w-3.5 h-3.5" />
+          <span>Purchased Laptops ({stats.totalPurchasedLaptops})</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setActiveView('all');
+            setAssetPage(1);
+          }}
+          className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            activeView === 'all'
+              ? 'bg-blue-600 text-white shadow-xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          <Laptop className="w-3.5 h-3.5" />
+          <span>All Fleet Assets ({stats.totalLaptops})</span>
+        </button>
       </div>
+
+      {/* VIEW 1: DONORS DIRECTORY */}
+      {activeView === 'donors' && (
+        <div className="space-y-4 animate-fade-in">
+          {/* Search Bar for Donors */}
+          <div className="relative z-10 bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row gap-2.5">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search donors by representative name, organization, email, or phone..."
+                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 focus:border-[#F26522] focus:ring-2 focus:ring-orange-500/20 outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Donors Table Container */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+            {loading ? (
+              <div className="p-12 text-center text-slate-400 text-xs font-medium">
+                <div className="w-8 h-8 border-3 border-orange-200 border-t-[#F26522] rounded-full animate-spin mx-auto mb-2.5" />
+                Loading donors directory...
+              </div>
+            ) : donors.length === 0 ? (
+              <div className="p-12 text-center text-slate-400 text-xs font-medium">
+                No donor organizations found matching your search.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-[10.5px] font-bold uppercase tracking-wider text-slate-500">
+                      {visibleColumns.includes('contact') && <th className="py-2.5 px-3">Representative / Contact</th>}
+                      {visibleColumns.includes('organization') && <th className="py-2.5 px-3">Organization / Entity</th>}
+                      {visibleColumns.includes('details') && <th className="py-2.5 px-3">Contact Details</th>}
+                      {visibleColumns.includes('donationDate') && <th className="py-2.5 px-3">Donation Date</th>}
+                      {visibleColumns.includes('donatedLaptops') && <th className="py-2.5 px-3">Donated Laptops</th>}
+                      {visibleColumns.includes('actions') && (
+                        <th className="py-2.5 px-3 text-right whitespace-nowrap">Actions</th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs">
+                    {donors.map((donor) => (
+                      <tr key={donor.id} className="hover:bg-orange-50/20 transition-colors">
+                        {visibleColumns.includes('contact') && (
+                          <td className="py-2.5 px-3">
+                            <div className="font-bold text-slate-900">{donor.name}</div>
+                            {donor.notes && <div className="text-[10px] text-slate-400 truncate max-w-xs">{donor.notes}</div>}
+                          </td>
+                        )}
+
+                        {visibleColumns.includes('organization') && (
+                          <td className="py-2.5 px-3">
+                            <div className="font-semibold text-slate-800">{donor.organization || 'Individual Donor'}</div>
+                            {donor.address && <div className="text-[10px] text-slate-400 truncate max-w-xs">{donor.address}</div>}
+                          </td>
+                        )}
+
+                        {visibleColumns.includes('details') && (
+                          <td className="py-2.5 px-3 space-y-0.5">
+                            {donor.email && (
+                              <div className="flex items-center space-x-1.5 text-slate-600">
+                                <Mail className="w-3.5 h-3.5 text-slate-400" />
+                                <span>{donor.email}</span>
+                              </div>
+                            )}
+                            {donor.phone && (
+                              <div className="flex items-center space-x-1.5 text-slate-600">
+                                <Phone className="w-3.5 h-3.5 text-slate-400" />
+                                <span>{donor.phone}</span>
+                              </div>
+                            )}
+                          </td>
+                        )}
+
+                        {visibleColumns.includes('donationDate') && (
+                          <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">
+                            <div className="flex items-center space-x-1">
+                              <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                              <span>{donor.donationDate ? new Date(donor.donationDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}</span>
+                            </div>
+                          </td>
+                        )}
+
+                        {visibleColumns.includes('donatedLaptops') && (
+                          <td className="py-3 px-4">
+                            <button
+                              onClick={() => handleViewDonatedAssets(donor)}
+                              className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 font-bold text-xs transition"
+                              title="View list of laptops donated by this partner"
+                            >
+                              <Gift className="w-3.5 h-3.5 text-purple-600" />
+                              <span>{donor._count?.assets || 0} Laptops</span>
+                              <ExternalLink className="w-3 h-3 ml-0.5 text-purple-500" />
+                            </button>
+                          </td>
+                        )}
+
+                        {visibleColumns.includes('actions') && (
+                          <td className="py-3 px-4 text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end space-x-1.5 flex-nowrap">
+                              <button
+                                onClick={() => handleViewDonatedAssets(donor)}
+                                title="View Donated Laptops"
+                                className="p-1.5 rounded-lg text-slate-500 hover:text-purple-600 hover:bg-purple-50 transition"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              {isStaff && (
+                                <button
+                                  onClick={() => handleOpenEdit(donor)}
+                                  title="Edit Donor Profile"
+                                  className="p-1.5 rounded-lg text-slate-500 hover:text-[#F26522] hover:bg-orange-50 transition"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                              )}
+                              {isSuperAdmin && (
+                                <button
+                                  onClick={() => handleDelete(donor.id, donor.name)}
+                                  title="Remove Donor"
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Universal Pagination Toolbar for Donors */}
+            <Pagination
+              page={page}
+              totalPages={pagination.totalPages}
+              total={pagination.total}
+              limit={limit}
+              onPageChange={setPage}
+              onLimitChange={(newLimit) => {
+                setLimit(newLimit);
+                setPage(1);
+              }}
+              itemName="donors"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* VIEW 2: MATCHING ASSETS TABLE (DONATED, PURCHASED, OR ALL ASSETS FILTERED ON SAME PAGE) */}
+      {activeView !== 'donors' && (
+        <div className="space-y-4 animate-fade-in">
+          {/* Search Bar for Matching Assets */}
+          <div className="relative z-10 bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row gap-2.5 justify-between items-center">
+            <div className="relative flex-1 w-full">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                value={assetSearch}
+                onChange={(e) => {
+                  setAssetSearch(e.target.value);
+                  setAssetPage(1);
+                }}
+                placeholder={`Search ${activeView === 'donated' ? 'donated' : activeView === 'purchased' ? 'purchased' : 'fleet'} laptops by tag, serial, make, model...`}
+                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 focus:border-[#F26522] focus:ring-2 focus:ring-orange-500/20 outline-none"
+              />
+            </div>
+            <div className="text-xs font-semibold text-slate-500 whitespace-nowrap">
+              Showing: <strong className="text-slate-800 uppercase">{activeView} Laptops</strong> ({assetPagination.total} Total)
+            </div>
+          </div>
+
+          {/* Assets Table Container */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+            {assetLoading ? (
+              <div className="p-12 text-center text-slate-400 text-xs font-medium">
+                <div className="w-8 h-8 border-3 border-orange-200 border-t-[#F26522] rounded-full animate-spin mx-auto mb-2.5" />
+                Loading matching laptops...
+              </div>
+            ) : matchingAssets.length === 0 ? (
+              <div className="p-12 text-center text-slate-400 text-xs font-medium">
+                No laptops found for the selected category.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-[10.5px] font-bold uppercase tracking-wider text-slate-500">
+                      <th className="py-2.5 px-3">Asset Tag</th>
+                      <th className="py-2.5 px-3">Make & Model</th>
+                      <th className="py-2.5 px-3">Specifications</th>
+                      <th className="py-2.5 px-3">Source & Acquisition</th>
+                      <th className="py-2.5 px-3">Condition</th>
+                      <th className="py-2.5 px-3">Status</th>
+                      <th className="py-2.5 px-3">Current Custody</th>
+                      <th className="py-2.5 px-3 text-right whitespace-nowrap">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs">
+                    {matchingAssets.map((asset) => {
+                      const activeAlloc = asset.allocations?.[0];
+                      return (
+                        <tr key={asset.id} className="hover:bg-orange-50/20 transition-colors">
+                          <td className="py-2.5 px-3 font-mono font-bold text-[#F26522]">
+                            {asset.assetTag}
+                          </td>
+                          <td className="py-2.5 px-3 font-semibold text-slate-900">
+                            <div>{asset.make} {asset.model}</div>
+                            <div className="text-[10px] text-slate-400 font-mono">S/N: {asset.serialNumber}</div>
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-600 text-[11px]">
+                            <div>{asset.processor || 'Core i5'}</div>
+                            <div className="text-slate-400">{asset.ram || '8GB'} • {asset.storage || '256GB SSD'}</div>
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                              asset.acquisitionSource === 'DONATED'
+                                ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                                : 'bg-orange-50 text-orange-700 border border-orange-200'
+                            }`}>
+                              {asset.acquisitionSource === 'DONATED' ? 'DONATED' : 'PURCHASED'}
+                            </span>
+                            {asset.donor && (
+                              <div className="text-[10px] text-slate-500 mt-0.5 truncate max-w-[130px]" title={asset.donor.name}>
+                                {asset.donor.name}
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <Badge status={asset.condition} size="xs" />
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <Badge status={asset.status} size="xs" />
+                          </td>
+                          <td className="py-2.5 px-3">
+                            {activeAlloc?.recipient ? (
+                              <div>
+                                <div className="font-bold text-slate-800">{activeAlloc.recipient.name}</div>
+                                <div className="text-[10px] text-slate-400 font-mono">
+                                  {activeAlloc.recipient.rollNumberOrEmpId} ({activeAlloc.recipient.role})
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-[10.5px] text-slate-400 italic font-medium">In Central Stock</span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                            <button
+                              onClick={() => navigate(`/inventory/${asset.id}`)}
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-[#F26522] hover:bg-orange-50 transition"
+                              title="View Full Hardware Profile"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Pagination for Matching Assets */}
+            <Pagination
+              page={assetPage}
+              totalPages={assetPagination.totalPages}
+              total={assetPagination.total}
+              limit={15}
+              onPageChange={setAssetPage}
+              itemName="assets"
+            />
+          </div>
+        </div>
+      )}
 
       {/* Register / Edit Donor Modal */}
       <Modal

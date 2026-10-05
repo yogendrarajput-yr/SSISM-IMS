@@ -321,14 +321,14 @@ export const AllocateModal = ({ isOpen, onClose, selectedAsset = null, onSuccess
                 2. Select Recipient (Student / Employee) *
               </label>
 
-              {/* + Add New Student/Employee Inline Trigger */}
+              {/* Add New Student/Employee Inline Trigger */}
               <button
                 type="button"
                 onClick={() => setQuickCreateOpen(true)}
                 className="inline-flex items-center space-x-1 px-2.5 py-1 text-xs font-bold text-[#D9531E] bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-lg transition"
               >
                 <UserPlus className="w-3.5 h-3.5" />
-                <span>+ Add New Student/Employee</span>
+                <span>Add New Student/Employee</span>
               </button>
             </div>
 
@@ -565,7 +565,7 @@ export const AllocateModal = ({ isOpen, onClose, selectedAsset = null, onSuccess
               disabled={loading || (feeWarning && !overrideWarning)}
               className="px-5 py-2 text-xs font-bold text-white bg-[#D9531E] hover:bg-[#b83e0e] disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-xs transition flex items-center space-x-2"
             >
-              {loading ? 'Allocating...' : '+ Issue Asset'}
+              {loading ? 'Allocating...' : 'Issue Asset'}
             </button>
           </div>
         </form>

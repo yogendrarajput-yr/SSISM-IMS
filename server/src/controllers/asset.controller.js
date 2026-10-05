@@ -184,3 +184,51 @@ export const getAuditOverdueReport = async (req, res, next) => {
   }
 };
 
+/**
+ * Controller: Log recurring AirFiber / Router device recharge.
+ */
+export const logRecharge = async (req, res, next) => {
+  try {
+    const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const result = await assetService.logRecharge(req.params.id, req.body, req.user.id, ipAddress);
+    res.status(200).json({
+      success: true,
+      message: 'Recharge logged successfully',
+      data: result,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Controller: Get recharge history for a specific AirFiber or Router asset.
+ */
+export const getRechargeHistory = async (req, res, next) => {
+  try {
+    const history = await assetService.getRechargeHistory(req.params.id);
+    res.status(200).json({
+      success: true,
+      data: { history },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Controller: Retrieve upcoming and overdue AirFiber / Router recharge report.
+ */
+export const getRechargeDueReport = async (req, res, next) => {
+  try {
+    const report = await assetService.getRechargeDueReport();
+    res.status(200).json({
+      success: true,
+      data: report,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+

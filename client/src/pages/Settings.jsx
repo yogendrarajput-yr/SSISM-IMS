@@ -298,7 +298,7 @@ export const Settings = () => {
                     className="px-3.5 py-1.5 rounded-xl bg-[#F26522] hover:bg-orange-600 text-white font-bold text-xs flex items-center space-x-1.5 transition shadow-sm"
                   >
                     <Plus className="w-4 h-4" />
-                    <span>+ Add Department</span>
+                    <span>Add Department</span>
                   </button>
                 )}
               </div>
@@ -378,7 +378,7 @@ export const Settings = () => {
                     className="px-3.5 py-1.5 rounded-xl bg-[#F26522] hover:bg-orange-600 text-white font-bold text-xs flex items-center space-x-1.5 transition shadow-sm"
                   >
                     <Plus className="w-4 h-4" />
-                    <span>+ Add Category</span>
+                    <span>Add Category</span>
                   </button>
                 )}
               </div>

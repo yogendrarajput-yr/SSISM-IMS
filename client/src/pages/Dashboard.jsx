@@ -6,6 +6,7 @@ import { AllocateModal } from '../components/allocation/AllocateModal';
 import { ReturnModal } from '../components/allocation/ReturnModal';
 import { QuickReturnModal } from '../components/allocation/QuickReturnModal';
 import { ReceiptModal } from '../components/allocation/ReceiptModal';
+import { RechargeModal } from '../components/inventory/RechargeModal';
 import { CustomSelect } from '../components/common/CustomSelect';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -24,6 +25,10 @@ import {
   RotateCcw,
   Calendar,
   AlertTriangle,
+  Radio,
+  Zap,
+  Wifi,
+  ShieldAlert,
 } from 'lucide-react';
 
 /**
@@ -37,6 +42,7 @@ export const Dashboard = () => {
   const [allocateOpen, setAllocateOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
   const [selectedReturnAlloc, setSelectedReturnAlloc] = useState(null);
+  const [rechargeModalAsset, setRechargeModalAsset] = useState(null);
   const [dueRangeFilter, setDueRangeFilter] = useState('7_DAYS');
   const [activeReceipt, setActiveReceipt] = useState(null);
   const [departments, setDepartments] = useState([]);
@@ -108,8 +114,9 @@ export const Dashboard = () => {
   const unpaidFees = feeStats.find((f) => f.status === 'UNPAID')?._count?.status || 0;
   const totalFees = paidFees + unpaidFees;
   const clearanceRate = totalFees > 0 ? Math.round((paidFees / totalFees) * 100) : 100;
-
   const upcomingReturns = data?.upcomingReturns || [];
+  const airFiberDueList = data?.metrics?.airFiberDueList || [];
+  const airFiberDueCount = data?.metrics?.airFiberDueThisWeek ?? airFiberDueList.length;
   const nowMs = Date.now();
   const filteredReturns = upcomingReturns.filter((item) => {
     const returnDate = item.expectedReturnDate || item.dueDate;
@@ -142,7 +149,7 @@ export const Dashboard = () => {
               className="px-4 py-2.5 rounded-xl bg-[#F26522] hover:bg-orange-600 text-white font-bold text-xs shadow-md shadow-orange-500/25 flex items-center space-x-2 transition active:scale-95"
             >
               <PlusCircle className="w-4 h-4" />
-              <span>+ Issue / Allocate Laptop</span>
+              <span>Issue / Allocate Laptop</span>
             </button>
             <button
               onClick={() => setReturnOpen(true)}
@@ -150,12 +157,6 @@ export const Dashboard = () => {
             >
               <RotateCcw className="w-4 h-4" />
               <span>Return / Submit Laptop</span>
-            </button>
-            <button
-              onClick={() => navigate('/inventory')}
-              className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs transition border border-white/20"
-            >
-              View Inventory
             </button>
           </div>
         )}
@@ -482,6 +483,126 @@ export const Dashboard = () => {
         </div>
       </div>
 
+      {/* AirFiber & Router Recharges Due This Week Alert Widget */}
+      <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3.5">
+          <div className="flex items-center space-x-2.5">
+            <div className="w-8 h-8 rounded-lg bg-orange-50 text-orange-600 border border-orange-200 flex items-center justify-center font-bold">
+              <Radio className="w-4 h-4 text-[#F26522]" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h2 className="text-sm font-extrabold text-slate-900 tracking-tight">
+                  AirFiber Recharges Due This Week
+                </h2>
+                {airFiberDueCount > 0 ? (
+                  <span className="px-2 py-0.5 rounded-full text-[10.5px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">
+                    {airFiberDueCount} Expiring Soon / Expired
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    All Active
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-500 font-medium">
+                Live monitoring of campus internet connections, AirFiber SIM packs, and network routers requiring renewal
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => navigate('/inventory?category=ROUTERS_AIRFIBER')}
+            className="text-xs font-bold text-[#F26522] hover:underline flex items-center space-x-1"
+          >
+            <span>Open AirFiber Inventory</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {airFiberDueList.length === 0 ? (
+          <div className="p-6 text-center rounded-xl bg-slate-50 border border-dashed border-slate-200">
+            <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-2">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+            <p className="text-xs font-bold text-slate-700">All AirFiber Connections & Routers Are Active</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">No subscription renewals or data plan recharges are due this week.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200 text-[10.5px] font-bold uppercase tracking-wider text-slate-500">
+                  <th className="py-2.5 px-3">Device / Tag</th>
+                  <th className="py-2.5 px-3">Provider & SIM Number</th>
+                  <th className="py-2.5 px-3">Installed Location</th>
+                  <th className="py-2.5 px-3">Plan Expiry Date</th>
+                  <th className="py-2.5 px-3">Recharge Status</th>
+                  <th className="py-2.5 px-3 text-right">Direct Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {airFiberDueList.map((device) => {
+                  const isExpired = device.status === 'EXPIRED' || (device.daysRemaining !== null && device.daysRemaining <= 0);
+                  return (
+                    <tr key={device.id} className="hover:bg-slate-50/70 transition">
+                      <td className="py-2.5 px-3">
+                        <div className="font-mono font-bold text-[#F26522]">{device.assetTag}</div>
+                        <div className="font-bold text-slate-800 text-[11px]">{device.make} {device.model}</div>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black ${
+                          device.serviceProvider === 'JIO' ? 'bg-blue-100 text-blue-700' :
+                          device.serviceProvider === 'AIRTEL' ? 'bg-red-100 text-red-700' :
+                          'bg-slate-100 text-slate-700'
+                        }`}>
+                          {device.serviceProvider || 'JIO'}
+                        </span>
+                        <div className="font-mono text-[10.5px] text-slate-600 mt-0.5">{device.simNumber || 'Direct Fiber'}</div>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <span className="font-semibold text-slate-700">{device.location || 'Campus Wide'}</span>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <div className="font-bold text-slate-800">
+                          {device.rechargeExpiryDate ? new Date(device.rechargeExpiryDate).toLocaleDateString('en-GB') : 'No Expiry Set'}
+                        </div>
+                        {device.monthlyCost && (
+                          <div className="text-[10px] text-slate-400 font-semibold">₹{Number(device.monthlyCost).toLocaleString('en-IN')}/mo</div>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3">
+                        {isExpired ? (
+                          <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-black bg-rose-100 text-rose-700 border border-rose-200">
+                            <ShieldAlert className="w-3 h-3 text-rose-600" />
+                            <span>EXPIRED ({Math.abs(device.daysRemaining ?? 0)}d ago)</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-black bg-amber-100 text-amber-800 border border-amber-300">
+                            <AlertTriangle className="w-3 h-3 text-amber-600" />
+                            <span>DUE IN {device.daysRemaining} DAYS</span>
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => setRechargeModalAsset(device)}
+                          className="px-3 py-1 rounded-lg bg-[#F26522] hover:bg-orange-600 text-white font-bold text-xs transition shadow-2xs inline-flex items-center space-x-1"
+                        >
+                          <Zap className="w-3.5 h-3.5 fill-current" />
+                          <span>Log Recharge</span>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       {/* Section 2: Department Distribution & Physical Condition */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Department Asset Allocation Breakdown */}
@@ -744,6 +865,16 @@ export const Dashboard = () => {
         isOpen={!!activeReceipt}
         onClose={() => setActiveReceipt(null)}
         allocation={activeReceipt}
+      />
+
+      {/* AirFiber & Router Recharge Modal */}
+      <RechargeModal
+        isOpen={Boolean(rechargeModalAsset)}
+        onClose={() => setRechargeModalAsset(null)}
+        asset={rechargeModalAsset}
+        onSuccess={() => {
+          fetchStats();
+        }}
       />
     </div>
   );

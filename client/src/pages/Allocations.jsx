@@ -259,8 +259,8 @@ export const Allocations = () => {
         </div>
       </div>
 
-      {/* 6 Top KPI Metric Cards (Unified Master StatCard Design with Return Tracking) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
+      {/* 4 Top KPI Metric Cards (Cleaned Up: Removed Due in 7 Days and Due in 1 Month cards) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Issued"
           value={metrics.total}
@@ -285,34 +285,6 @@ export const Allocations = () => {
           onClick={() => {
             setStatus('ACTIVE');
             setDueRange('');
-            setPage(1);
-          }}
-        />
-
-        <StatCard
-          title="Laptops Due This Week"
-          value={metrics.dueThisWeek || 0}
-          icon={Calendar}
-          color="orange"
-          subtitle="Upcoming 7 Days"
-          active={dueRange === '7_DAYS'}
-          onClick={() => {
-            setDueRange('7_DAYS');
-            setStatus('');
-            setPage(1);
-          }}
-        />
-
-        <StatCard
-          title="Laptops Due This Month"
-          value={metrics.dueThisMonth || 0}
-          icon={Clock}
-          color="blue"
-          subtitle="Upcoming 30 Days"
-          active={dueRange === '30_DAYS'}
-          onClick={() => {
-            setDueRange('30_DAYS');
-            setStatus('');
             setPage(1);
           }}
         />

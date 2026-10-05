@@ -37,6 +37,12 @@ export const getAssetsList = async ({
       { serialNumber: { contains: search } },
       { model: { contains: search } },
       { make: { contains: search } },
+      { modelNumber: { contains: search } },
+      { location: { contains: search } },
+      { simNumber: { contains: search } },
+      { serviceProvider: { contains: search } },
+      { planDetails: { contains: search } },
+      { ipAddress: { contains: search } },
       { processor: { contains: search } },
       { generation: { contains: search } },
       { color: { contains: search } },
@@ -46,14 +52,26 @@ export const getAssetsList = async ({
   }
 
   if (status) where.status = status;
-  if (category) where.category = category;
+
+  if (category && category !== 'ALL') {
+    if (category === 'PANELS_TVS') {
+      where.category = { in: ['WHITEBOARD_PANEL', 'SMART_TV', 'INTERACTIVE_WHITEBOARD'] };
+    } else if (category === 'ROUTERS_AIRFIBER') {
+      where.category = { in: ['ROUTER', 'AIR_FIBER'] };
+    } else if (category === 'PRINTERS_MONITORS') {
+      where.category = { in: ['PRINTER', 'MONITOR'] };
+    } else {
+      where.category = category;
+    }
+  }
+
   if (condition) where.condition = condition;
   if (make) where.make = make;
   if (departmentId) where.departmentId = Number(departmentId);
   if (acquisitionSource) where.acquisitionSource = acquisitionSource;
   if (donorId) where.donorId = Number(donorId);
 
-  const [assets, total, summary, acquisitionSummary, distinctMakes] = await Promise.all([
+  const [assets, total, summary, acquisitionSummary, categorySummary, distinctMakes] = await Promise.all([
     prisma.asset.findMany({
       where,
       skip,
@@ -63,6 +81,11 @@ export const getAssetsList = async ({
         department: { select: { id: true, name: true, code: true } },
         donor: { select: { id: true, name: true, organization: true } },
         verifiedBy: { select: { id: true, name: true, email: true } },
+        rechargeHistory: {
+          take: 1,
+          orderBy: { rechargeDate: 'desc' },
+          select: { id: true, amount: true, rechargeDate: true, newExpiryDate: true, transactionId: true },
+        },
         allocations: {
           where: { status: 'ACTIVE' },
           include: {
@@ -84,6 +107,11 @@ export const getAssetsList = async ({
       where: departmentId ? { departmentId: Number(departmentId) } : {},
       _count: { acquisitionSource: true },
     }),
+    prisma.asset.groupBy({
+      by: ['category'],
+      where: { isArchived: false },
+      _count: { category: true },
+    }),
     prisma.asset.findMany({
       where: { isArchived: false },
       select: { make: true },
@@ -92,10 +120,38 @@ export const getAssetsList = async ({
     }),
   ]);
 
+  const now = new Date();
+  const enrichedAssets = assets.map((asset) => {
+    let rechargeStatus = null;
+    let daysRemaining = null;
+    if (asset.category === 'AIR_FIBER' || asset.category === 'ROUTER' || asset.rechargeExpiryDate) {
+      if (asset.rechargeExpiryDate) {
+        const diffMs = new Date(asset.rechargeExpiryDate).getTime() - now.getTime();
+        daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+        if (daysRemaining > 7) {
+          rechargeStatus = 'ACTIVE';
+        } else if (daysRemaining >= 0) {
+          rechargeStatus = 'EXPIRING_SOON';
+        } else {
+          rechargeStatus = 'EXPIRED';
+        }
+      } else {
+        rechargeStatus = 'EXPIRED';
+        daysRemaining = -1;
+      }
+    }
+    return {
+      ...asset,
+      rechargeStatus,
+      daysRemaining,
+    };
+  });
+
   return {
-    assets,
+    assets: enrichedAssets,
     summary,
     acquisitionSummary,
+    categorySummary,
     makes: distinctMakes.map((m) => m.make).filter(Boolean),
     pagination: {
       total,
@@ -159,6 +215,13 @@ export const getAssetById = async (id) => {
           performedBy: { select: { id: true, name: true, email: true } },
         },
       },
+      // AirFiber & Router Recurring Recharge History
+      rechargeHistory: {
+        orderBy: { rechargeDate: 'desc' },
+        include: {
+          createdBy: { select: { id: true, name: true, role: true } },
+        },
+      },
     },
   });
 
@@ -201,6 +264,9 @@ export const createAsset = async (data, actorId, ipAddress) => {
       departmentId: data.departmentId ? Number(data.departmentId) : null,
       purchaseDate: data.purchaseDate ? new Date(data.purchaseDate) : null,
       warrantyExpiry: data.warrantyExpiry ? new Date(data.warrantyExpiry) : null,
+      lastRechargeDate: data.lastRechargeDate ? new Date(data.lastRechargeDate) : null,
+      rechargeExpiryDate: data.rechargeExpiryDate ? new Date(data.rechargeExpiryDate) : null,
+      monthlyCost: data.monthlyCost ? Number(data.monthlyCost) : null,
     },
     include: {
       department: { select: { id: true, name: true, code: true } },
@@ -260,6 +326,15 @@ export const updateAsset = async (id, data, actorId, ipAddress) => {
   }
   if (assetData.warrantyExpiry !== undefined) {
     assetData.warrantyExpiry = assetData.warrantyExpiry ? new Date(assetData.warrantyExpiry) : null;
+  }
+  if (assetData.lastRechargeDate !== undefined) {
+    assetData.lastRechargeDate = assetData.lastRechargeDate ? new Date(assetData.lastRechargeDate) : null;
+  }
+  if (assetData.rechargeExpiryDate !== undefined) {
+    assetData.rechargeExpiryDate = assetData.rechargeExpiryDate ? new Date(assetData.rechargeExpiryDate) : null;
+  }
+  if (assetData.monthlyCost !== undefined) {
+    assetData.monthlyCost = assetData.monthlyCost ? Number(assetData.monthlyCost) : null;
   }
 
   const updated = await prisma.asset.update({
@@ -572,6 +647,8 @@ export const getDashboardMetrics = async ({ departmentId, make } = {}) => {
     recentMaintenance,
     feeStats,
     distinctMakes,
+    airFiberDueCount,
+    airFiberDueList,
   ] = await Promise.all([
     prisma.asset.count({ where: assetWhere }),
     prisma.asset.count({ where: { ...assetWhere, status: 'AVAILABLE' } }),
@@ -682,6 +759,42 @@ export const getDashboardMetrics = async ({ departmentId, make } = {}) => {
       distinct: ['make'],
       orderBy: { make: 'asc' },
     }),
+    prisma.asset.count({
+      where: {
+        isArchived: false,
+        category: { in: ['AIR_FIBER', 'ROUTER'] },
+        OR: [
+          { rechargeExpiryDate: { lte: in7Days } },
+          { rechargeExpiryDate: null },
+        ],
+      },
+    }),
+    prisma.asset.findMany({
+      where: {
+        isArchived: false,
+        category: { in: ['AIR_FIBER', 'ROUTER'] },
+        OR: [
+          { rechargeExpiryDate: { lte: in7Days } },
+          { rechargeExpiryDate: null },
+        ],
+      },
+      take: 6,
+      orderBy: [
+        { rechargeExpiryDate: 'asc' },
+      ],
+      select: {
+        id: true,
+        assetTag: true,
+        category: true,
+        make: true,
+        model: true,
+        location: true,
+        serviceProvider: true,
+        simNumber: true,
+        rechargeExpiryDate: true,
+        monthlyCost: true,
+      },
+    }),
   ]);
 
   return {
@@ -693,6 +806,7 @@ export const getDashboardMetrics = async ({ departmentId, make } = {}) => {
       retired: retiredCount,
       dueThisWeek: dueThisWeekCount,
       dueThisMonth: dueThisMonthCount,
+      airFiberDueThisWeek: airFiberDueCount,
     },
     upcomingReturns,
     conditionStats,
@@ -700,6 +814,7 @@ export const getDashboardMetrics = async ({ departmentId, make } = {}) => {
     recentAllocations,
     recentMaintenance,
     feeStats,
+    airFiberDueList,
     makes: distinctMakes.map((m) => m.make).filter(Boolean),
   };
 };
@@ -809,23 +924,26 @@ export const getPhysicalAuditOverdueReport = async ({
 
   const where = { isArchived: false, category: 'LAPTOP' };
 
-  if (period === '6_MONTHS') {
-    where.OR = [
-      { lastVerifiedAt: null },
-      { lastVerifiedAt: { lt: sixMonthsAgo } },
-    ];
-  } else if (period === '1_YEAR') {
-    where.OR = [
-      { lastVerifiedAt: null },
-      { lastVerifiedAt: { lt: oneYearAgo } },
-    ];
-  }
-
   if (auditStatus) {
     if (auditStatus === 'UNVERIFIED') {
       where.lastVerifiedAt = null;
+    } else if (auditStatus === 'PHYSICAL_OK') {
+      where.lastVerifiedAt = { not: null };
+      where.auditStatus = 'PHYSICAL_OK';
     } else {
       where.auditStatus = auditStatus;
+    }
+  } else {
+    if (period === '6_MONTHS') {
+      where.OR = [
+        { lastVerifiedAt: null },
+        { lastVerifiedAt: { lt: sixMonthsAgo } },
+      ];
+    } else if (period === '1_YEAR') {
+      where.OR = [
+        { lastVerifiedAt: null },
+        { lastVerifiedAt: { lt: oneYearAgo } },
+      ];
     }
   }
 
@@ -864,7 +982,17 @@ export const getPhysicalAuditOverdueReport = async ({
 
   const skip = (Number(page) - 1) * Number(limit);
 
-  const [assets, total, allOverdue6Months, allOverdue1Year, studentOverdueCount, statusCounts] = await Promise.all([
+  const [
+    assets,
+    total,
+    allOverdue6Months,
+    allOverdue1Year,
+    studentOverdueCount,
+    unverifiedCount,
+    physicalOkCount,
+    needsRepairCount,
+    missingCount,
+  ] = await Promise.all([
     prisma.asset.findMany({
       where,
       skip,
@@ -919,10 +1047,34 @@ export const getPhysicalAuditOverdueReport = async ({
         allocations: { some: { status: 'ACTIVE', recipient: { role: 'STUDENT' } } },
       },
     }),
-    prisma.asset.groupBy({
-      by: ['auditStatus'],
-      where: { isArchived: false, category: 'LAPTOP' },
-      _count: { auditStatus: true },
+    prisma.asset.count({
+      where: {
+        isArchived: false,
+        category: 'LAPTOP',
+        lastVerifiedAt: null,
+      },
+    }),
+    prisma.asset.count({
+      where: {
+        isArchived: false,
+        category: 'LAPTOP',
+        lastVerifiedAt: { not: null },
+        auditStatus: 'PHYSICAL_OK',
+      },
+    }),
+    prisma.asset.count({
+      where: {
+        isArchived: false,
+        category: 'LAPTOP',
+        auditStatus: 'NEEDS_REPAIR',
+      },
+    }),
+    prisma.asset.count({
+      where: {
+        isArchived: false,
+        category: 'LAPTOP',
+        auditStatus: 'MISSING',
+      },
     }),
   ]);
 
@@ -950,10 +1102,12 @@ export const getPhysicalAuditOverdueReport = async ({
       totalOverdue6Months: allOverdue6Months,
       totalOverdue1Year: allOverdue1Year,
       studentAssignedOverdueCount: studentOverdueCount,
-      statusCounts: statusCounts.reduce((acc, curr) => {
-        if (curr.auditStatus) acc[curr.auditStatus] = curr._count.auditStatus;
-        return acc;
-      }, {}),
+      statusCounts: {
+        UNVERIFIED: unverifiedCount,
+        PHYSICAL_OK: physicalOkCount,
+        NEEDS_REPAIR: needsRepairCount,
+        MISSING: missingCount,
+      },
     },
     pagination: {
       total,
@@ -963,3 +1117,168 @@ export const getPhysicalAuditOverdueReport = async ({
     },
   };
 };
+
+/**
+ * Log a recharge for AirFiber / Router hardware assets.
+ * 
+ * @param {number|string} assetId
+ * @param {Object} data
+ * @param {number} actorId
+ * @param {string} ipAddress
+ */
+export const logRecharge = async (assetId, data, actorId, ipAddress) => {
+  const asset = await prisma.asset.findUnique({
+    where: { id: Number(assetId) },
+  });
+
+  if (!asset) {
+    throw new AppError('Asset not found.', 404);
+  }
+
+  const rechargeDate = data.rechargeDate ? new Date(data.rechargeDate) : new Date();
+  const validityDays = data.validityDays ? Number(data.validityDays) : 30;
+
+  let newExpiryDate;
+  if (data.newExpiryDate) {
+    newExpiryDate = new Date(data.newExpiryDate);
+  } else {
+    // If current expiry is in the future, extend from current expiry date, else from recharge date
+    const baseDate =
+      asset.rechargeExpiryDate && new Date(asset.rechargeExpiryDate) > rechargeDate
+        ? new Date(asset.rechargeExpiryDate)
+        : new Date(rechargeDate);
+    newExpiryDate = new Date(baseDate.getTime() + validityDays * 24 * 60 * 60 * 1000);
+  }
+
+  const rechargeAmount = Number(data.amount ?? data.rechargeAmount);
+
+  const [rechargeRecord, updatedAsset] = await prisma.$transaction([
+    prisma.rechargeHistory.create({
+      data: {
+        assetId: Number(assetId),
+        amount: rechargeAmount,
+        validityDays,
+        rechargeDate,
+        newExpiryDate,
+        transactionId: data.transactionId || data.receiptNumber || null,
+        paymentMode: data.paymentMode || 'UPI',
+        serviceProvider: data.serviceProvider || asset.serviceProvider || 'JIO',
+        planDetails: data.planDetails || asset.planDetails || null,
+        notes: data.notes || data.remarks || null,
+        createdById: actorId ? Number(actorId) : null,
+      },
+      include: {
+        createdBy: { select: { id: true, name: true, role: true } },
+      },
+    }),
+    prisma.asset.update({
+      where: { id: Number(assetId) },
+      data: {
+        lastRechargeDate: rechargeDate,
+        rechargeExpiryDate: newExpiryDate,
+        ...(data.serviceProvider ? { serviceProvider: data.serviceProvider } : {}),
+        ...(data.planDetails ? { planDetails: data.planDetails } : {}),
+        ...(rechargeAmount ? { monthlyCost: rechargeAmount } : {}),
+      },
+      include: {
+        department: { select: { id: true, name: true, code: true } },
+      },
+    }),
+  ]);
+
+  await logAudit({
+    actorId,
+    action: 'AIRFIBER_RECHARGED',
+    entityType: 'Asset',
+    entityId: asset.id,
+    details: {
+      amount: data.amount,
+      validityDays,
+      transactionId: data.transactionId,
+      newExpiryDate,
+    },
+    ipAddress,
+  });
+
+  return { rechargeRecord, asset: updatedAsset };
+};
+
+/**
+ * Retrieve recharge history for a specific asset.
+ */
+export const getRechargeHistory = async (assetId) => {
+  const history = await prisma.rechargeHistory.findMany({
+    where: { assetId: Number(assetId) },
+    orderBy: { rechargeDate: 'desc' },
+    include: {
+      createdBy: { select: { id: true, name: true, role: true } },
+    },
+  });
+  return history;
+};
+
+/**
+ * Retrieve AirFiber & Routers recharge due / expiring report.
+ */
+export const getRechargeDueReport = async () => {
+  const now = new Date();
+  const in7Days = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  const assets = await prisma.asset.findMany({
+    where: {
+      isArchived: false,
+      category: { in: ['AIR_FIBER', 'ROUTER'] },
+    },
+    orderBy: [{ rechargeExpiryDate: 'asc' }],
+    include: {
+      department: { select: { id: true, name: true, code: true } },
+      rechargeHistory: {
+        take: 1,
+        orderBy: { rechargeDate: 'desc' },
+      },
+    },
+  });
+
+  // Calculate status for each asset: ACTIVE, EXPIRING_SOON, EXPIRED
+  const categorized = assets.map((a) => {
+    let rechargeStatus = 'EXPIRED';
+    let daysRemaining = 0;
+    if (a.rechargeExpiryDate) {
+      const diffMs = new Date(a.rechargeExpiryDate).getTime() - now.getTime();
+      daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      if (daysRemaining > 7) {
+        rechargeStatus = 'ACTIVE';
+      } else if (daysRemaining >= 0) {
+        rechargeStatus = 'EXPIRING_SOON';
+      } else {
+        rechargeStatus = 'EXPIRED';
+      }
+    } else {
+      rechargeStatus = 'EXPIRED';
+      daysRemaining = -1;
+    }
+    return {
+      ...a,
+      rechargeStatus,
+      daysRemaining,
+    };
+  });
+
+  const dueThisWeek = categorized.filter((a) => a.rechargeStatus === 'EXPIRING_SOON');
+  const expired = categorized.filter((a) => a.rechargeStatus === 'EXPIRED');
+  const active = categorized.filter((a) => a.rechargeStatus === 'ACTIVE');
+
+  return {
+    all: categorized,
+    dueThisWeek,
+    expired,
+    active,
+    counts: {
+      total: categorized.length,
+      dueThisWeek: dueThisWeek.length,
+      expired: expired.length,
+      active: active.length,
+    },
+  };
+};
+

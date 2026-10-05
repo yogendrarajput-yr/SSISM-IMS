@@ -38,6 +38,20 @@ const STAFF_COLUMNS = [
   { key: 'actions', label: 'Actions', required: true },
 ];
 
+export const formatEmployeeId = (val) => {
+  if (!val) return '—';
+  const str = String(val).trim();
+  if (/^EID_\d+$/i.test(str)) {
+    const num = str.replace(/^EID_/i, '');
+    return `EID_${num.padStart(3, '0')}`;
+  }
+  const digits = str.replace(/\D/g, '');
+  if (digits) {
+    return `EID_${digits.padStart(3, '0')}`;
+  }
+  return str;
+};
+
 export const StaffDirectory = ({ hideTitle = false }) => {
   const { isStaff, isSuperAdmin } = useAuth();
 
@@ -64,6 +78,10 @@ export const StaffDirectory = ({ hideTitle = false }) => {
   const [search, setSearch] = useState('');
   const [departmentId, setDepartmentId] = useState('ALL');
   const [custodyStatus, setCustodyStatus] = useState('ALL');
+
+  // Active Card Filter State: 'ALL' | 'ISSUED' | 'DEPARTMENTS'
+  const [activeCard, setActiveCard] = useState('ALL');
+  const [showDeptView, setShowDeptView] = useState(false);
 
   // Selection & Drawer State
   const [selectedIds, setSelectedIds] = useState([]);
@@ -160,6 +178,21 @@ export const StaffDirectory = ({ hideTitle = false }) => {
     );
   };
 
+  // Helper to suggest next incremental Employee ID
+  const getNextEmployeeId = () => {
+    let maxNum = 0;
+    staffList.forEach((s) => {
+      const id = s.rollNumberOrEmpId || '';
+      const m = id.match(/EID_(\d+)/i);
+      if (m) {
+        const num = parseInt(m[1], 10);
+        if (num > maxNum) maxNum = num;
+      }
+    });
+    const candidate = Math.max(maxNum + 1, (pagination.total || 0) + 1);
+    return `EID_${String(candidate).padStart(3, '0')}`;
+  };
+
   // Add / Edit Modal Triggers
   const handleOpenAddModal = () => {
     setEditingStaff(null);
@@ -170,7 +203,7 @@ export const StaffDirectory = ({ hideTitle = false }) => {
       aadhaarNumber: '',
       phone: '',
       email: '',
-      employeeId: '',
+      employeeId: getNextEmployeeId(),
       role: 'FACULTY',
       address: '',
     });
@@ -186,7 +219,7 @@ export const StaffDirectory = ({ hideTitle = false }) => {
       aadhaarNumber: st.aadhaarNumber || '',
       phone: st.phone || '',
       email: st.email || '',
-      employeeId: st.rollNumberOrEmpId || '',
+      employeeId: formatEmployeeId(st.rollNumberOrEmpId),
       role: st.role || 'STAFF',
       address: st.address || '',
     });
@@ -403,10 +436,12 @@ export const StaffDirectory = ({ hideTitle = false }) => {
           value={metrics.totalStaff || 0}
           icon={UserCheck}
           color="blue"
-          active={custodyStatus === 'ALL' && (departmentId === 'ALL' || !departmentId) && !search}
+          active={activeCard === 'ALL' && custodyStatus === 'ALL' && departmentId === 'ALL'}
           onClick={() => {
+            setActiveCard('ALL');
             setCustodyStatus('ALL');
             setDepartmentId('ALL');
+            setShowDeptView(false);
             setSearch('');
             setPagination((p) => ({ ...p, page: 1 }));
           }}
@@ -417,9 +452,17 @@ export const StaffDirectory = ({ hideTitle = false }) => {
           value={metrics.holdingLaptop || 0}
           icon={Laptop}
           color="green"
-          active={custodyStatus === 'ISSUED'}
+          active={activeCard === 'ISSUED' && custodyStatus === 'ISSUED'}
           onClick={() => {
-            setCustodyStatus(custodyStatus === 'ISSUED' ? 'ALL' : 'ISSUED');
+            if (activeCard === 'ISSUED') {
+              setActiveCard('ALL');
+              setCustodyStatus('ALL');
+            } else {
+              setActiveCard('ISSUED');
+              setCustodyStatus('ISSUED');
+              setDepartmentId('ALL');
+              setShowDeptView(false);
+            }
             setPagination((p) => ({ ...p, page: 1 }));
           }}
         />
@@ -429,17 +472,153 @@ export const StaffDirectory = ({ hideTitle = false }) => {
           value={departments.length}
           icon={Building}
           color="purple"
-          active={departmentId !== 'ALL' && Boolean(departmentId)}
+          active={activeCard === 'DEPARTMENTS' || departmentId !== 'ALL'}
           onClick={() => {
-            if (departmentId !== 'ALL') {
-              setDepartmentId('ALL');
-            } else if (departments.length > 0) {
-              setDepartmentId(String(departments[0].id));
+            if (activeCard === 'DEPARTMENTS' && !showDeptView) {
+              setShowDeptView(true);
+            } else if (activeCard === 'DEPARTMENTS' && departmentId === 'ALL') {
+              setActiveCard('ALL');
+              setShowDeptView(false);
+            } else {
+              setActiveCard('DEPARTMENTS');
+              setCustodyStatus('ALL');
+              setShowDeptView(true);
             }
             setPagination((p) => ({ ...p, page: 1 }));
           }}
         />
       </div>
+
+      {/* Academic Department Filtering View */}
+      {showDeptView && (
+        <div className="bg-slate-50/90 border border-purple-200/80 rounded-2xl p-4 shadow-xs space-y-3 animate-in fade-in slide-in-from-top-2 duration-150">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center space-x-2">
+              <Building className="w-4 h-4 text-purple-600" />
+              <span className="text-xs font-bold text-slate-800">
+                Academic Department Filtering View
+              </span>
+              <span className="text-[11px] font-semibold text-slate-500">
+                (Click any department card to filter faculty & staff list)
+              </span>
+            </div>
+            <div className="flex items-center space-x-2">
+              {departmentId !== 'ALL' && (
+                <button
+                  onClick={() => {
+                    setDepartmentId('ALL');
+                    setPagination((p) => ({ ...p, page: 1 }));
+                  }}
+                  className="text-xs font-bold text-[#F26522] hover:underline"
+                >
+                  Clear Dept Filter
+                </button>
+              )}
+              <button
+                onClick={() => setShowDeptView(false)}
+                className="px-2.5 py-1 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-200/60 text-xs font-bold transition"
+              >
+                Hide
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5">
+            <div
+              onClick={() => {
+                setDepartmentId('ALL');
+                setPagination((p) => ({ ...p, page: 1 }));
+              }}
+              className={`p-3 rounded-xl border text-left cursor-pointer transition-all duration-150 flex flex-col justify-between ${
+                departmentId === 'ALL'
+                  ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
+                  : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 shadow-2xs hover:border-slate-300'
+              }`}
+            >
+              <div className="flex justify-between items-center mb-1">
+                <span
+                  className={`text-[10px] font-mono font-extrabold uppercase px-1.5 py-0.5 rounded ${
+                    departmentId === 'ALL'
+                      ? 'bg-purple-700 text-white'
+                      : 'bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  ALL
+                </span>
+                <span
+                  className={`text-[10.5px] font-extrabold ${
+                    departmentId === 'ALL' ? 'text-purple-100' : 'text-slate-500'
+                  }`}
+                >
+                  {metrics.totalStaff || 0}
+                </span>
+              </div>
+              <div className="text-[11.5px] font-bold truncate">All Departments</div>
+              <div
+                className={`text-[10px] font-medium ${
+                  departmentId === 'ALL' ? 'text-purple-200' : 'text-slate-400'
+                }`}
+              >
+                Full Directory
+              </div>
+            </div>
+
+            {departments.map((dept) => {
+              const isSelected = departmentId === String(dept.id);
+              return (
+                <div
+                  key={dept.id}
+                  onClick={() => {
+                    if (isSelected) {
+                      setDepartmentId('ALL');
+                    } else {
+                      setDepartmentId(String(dept.id));
+                      setActiveCard('DEPARTMENTS');
+                      setCustodyStatus('ALL');
+                    }
+                    setPagination((p) => ({ ...p, page: 1 }));
+                  }}
+                  className={`p-3 rounded-xl border text-left cursor-pointer transition-all duration-150 flex flex-col justify-between ${
+                    isSelected
+                      ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
+                      : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 shadow-2xs hover:border-slate-300'
+                  }`}
+                  title={dept.name}
+                >
+                  <div className="flex justify-between items-center mb-1">
+                    <span
+                      className={`text-[10px] font-mono font-extrabold uppercase px-1.5 py-0.5 rounded ${
+                        isSelected
+                          ? 'bg-purple-700 text-white'
+                          : 'bg-orange-50 text-[#F26522] border border-orange-200/60'
+                      }`}
+                    >
+                      {dept.code || 'DEPT'}
+                    </span>
+                    <span
+                      className={`text-[10.5px] font-extrabold ${
+                        isSelected ? 'text-purple-100' : 'text-slate-500'
+                      }`}
+                    >
+                      {dept._count?.users || 0}
+                    </span>
+                  </div>
+                  <div className="text-[11.5px] font-bold truncate" title={dept.name}>
+                    {dept.name}
+                  </div>
+                  <div
+                    className={`text-[10px] font-medium ${
+                      isSelected ? 'text-purple-200' : 'text-slate-400'
+                    }`}
+                  >
+                    {dept._count?.users || 0} Faculty / Staff
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Filter Toolbar with CustomSelect */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
@@ -575,7 +754,7 @@ export const StaffDirectory = ({ hideTitle = false }) => {
                       {/* Employee ID */}
                       {visibleColumns.includes('empId') && (
                         <td className="py-2 px-2 font-mono font-bold text-slate-900">
-                          {st.rollNumberOrEmpId}
+                          {formatEmployeeId(st.rollNumberOrEmpId)}
                         </td>
                       )}
 
@@ -771,14 +950,14 @@ export const StaffDirectory = ({ hideTitle = false }) => {
             {/* Employee ID */}
             <div>
               <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                Employee ID (Unique Key) *
+                Employee ID (Incremental Key) *
               </label>
               <input
                 type="text"
                 required
                 value={staffForm.employeeId}
                 onChange={(e) => setStaffForm({ ...staffForm, employeeId: e.target.value })}
-                placeholder="e.g., EMP-FAC-201"
+                placeholder="e.g., EID_001"
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono focus:ring-2 focus:ring-[#F26522]/30 focus:border-[#F26522] outline-none"
               />
             </div>

@@ -588,15 +588,23 @@ export const createStaff = async (data, actorId, ipAddress) => {
     address,
   } = data;
 
-  if (!name || !email || !employeeId || !phone) {
+  let resolvedEmpId = employeeId ? employeeId.trim() : '';
+  if (!resolvedEmpId) {
+    const totalStaffCount = await prisma.user.count({
+      where: { role: { in: ['STAFF', 'FACULTY', 'HIGHER_MANAGEMENT', 'SUPER_ADMIN'] } },
+    });
+    resolvedEmpId = `EID_${String(totalStaffCount + 1).padStart(3, '0')}`;
+  }
+
+  if (!name || !email || !resolvedEmpId || !phone) {
     throw new AppError('Staff Name, Email ID, Employee ID, and Mobile Number are required.', 400);
   }
 
   const existingEmail = await prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
   if (existingEmail) throw new AppError(`Email '${email}' is already in use.`, 409);
 
-  const existingEmp = await prisma.user.findUnique({ where: { rollNumberOrEmpId: employeeId.trim() } });
-  if (existingEmp) throw new AppError(`Employee ID '${employeeId}' is already registered.`, 409);
+  const existingEmp = await prisma.user.findUnique({ where: { rollNumberOrEmpId: resolvedEmpId } });
+  if (existingEmp) throw new AppError(`Employee ID '${resolvedEmpId}' is already registered.`, 409);
 
   if (aadhaarNumber && aadhaarNumber.trim()) {
     const existingAadhaar = await prisma.user.findUnique({ where: { aadhaarNumber: aadhaarNumber.trim() } });

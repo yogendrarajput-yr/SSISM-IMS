@@ -417,21 +417,17 @@ export const Students = ({ hideTitle = false }) => {
         </div>
       </div>
 
-      {/* Metric Stat Cards (Unified Master StatCard Design) */}
+      {/* Metric Stat Cards (Single-Select Filter Cards) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Active Students"
           value={metrics.totalActiveStudents || 0}
           icon={Users}
           color="blue"
-          active={custodyStatus === 'ALL' && feeStatus === 'ALL' && branch === 'ALL' && batchYear === 'ALL' && track === 'ALL' && !search}
+          active={custodyStatus === 'ALL' && feeStatus === 'ALL'}
           onClick={() => {
             setCustodyStatus('ALL');
             setFeeStatus('ALL');
-            setBranch('ALL');
-            setBatchYear('ALL');
-            setTrack('ALL');
-            setSearch('');
             setPagination((p) => ({ ...p, page: 1 }));
           }}
         />
@@ -441,9 +437,14 @@ export const Students = ({ hideTitle = false }) => {
           value={metrics.holdingLaptop || 0}
           icon={Laptop}
           color="green"
-          active={custodyStatus === 'ISSUED'}
+          active={custodyStatus === 'ISSUED' && feeStatus === 'ALL'}
           onClick={() => {
-            setCustodyStatus(custodyStatus === 'ISSUED' ? 'ALL' : 'ISSUED');
+            if (custodyStatus === 'ISSUED' && feeStatus === 'ALL') {
+              setCustodyStatus('ALL');
+            } else {
+              setCustodyStatus('ISSUED');
+              setFeeStatus('ALL');
+            }
             setPagination((p) => ({ ...p, page: 1 }));
           }}
         />
@@ -453,9 +454,14 @@ export const Students = ({ hideTitle = false }) => {
           value={metrics.feeCleared || 0}
           icon={CheckCircle}
           color="purple"
-          active={feeStatus === 'PAID'}
+          active={feeStatus === 'PAID' && custodyStatus === 'ALL'}
           onClick={() => {
-            setFeeStatus(feeStatus === 'PAID' ? 'ALL' : 'PAID');
+            if (feeStatus === 'PAID' && custodyStatus === 'ALL') {
+              setFeeStatus('ALL');
+            } else {
+              setFeeStatus('PAID');
+              setCustodyStatus('ALL');
+            }
             setPagination((p) => ({ ...p, page: 1 }));
           }}
         />
@@ -465,9 +471,14 @@ export const Students = ({ hideTitle = false }) => {
           value={metrics.feeOverdue || 0}
           icon={AlertTriangle}
           color="amber"
-          active={feeStatus === 'UNPAID'}
+          active={feeStatus === 'UNPAID' && custodyStatus === 'ALL'}
           onClick={() => {
-            setFeeStatus(feeStatus === 'UNPAID' ? 'ALL' : 'UNPAID');
+            if (feeStatus === 'UNPAID' && custodyStatus === 'ALL') {
+              setFeeStatus('ALL');
+            } else {
+              setFeeStatus('UNPAID');
+              setCustodyStatus('ALL');
+            }
             setPagination((p) => ({ ...p, page: 1 }));
           }}
         />

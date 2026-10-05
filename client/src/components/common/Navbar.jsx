@@ -78,26 +78,24 @@ export const Navbar = ({ onToggleSidebar, isCollapsed, onToggleCollapse }) => {
 
         {/* Right: User Profile & Actions */}
         <div className="flex items-center space-x-3">
-          {/* User Profile Pill */}
-          <div className="flex items-center space-x-2.5 pl-2.5 pr-2 py-1 rounded-xl bg-slate-50 border border-slate-200/80">
-            <div className="w-7 h-7 rounded-lg bg-[#F26522] text-white flex items-center justify-center font-extrabold text-xs shadow-xs">
+          {/* User Profile Pill (Simplified: Only Name and Role) */}
+          <div className="flex items-center space-x-2.5 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/80">
+            <div className="w-7 h-7 rounded-lg bg-[#F26522] text-white flex items-center justify-center font-extrabold text-xs shadow-xs shrink-0">
               {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
             </div>
-            <div className="hidden sm:block text-left">
-              <div className="text-xs font-bold text-slate-800 leading-tight truncate max-w-[130px]">
-                {user?.name}
-              </div>
-              <div className="text-[9.5px] font-semibold text-slate-400 uppercase tracking-wider">
-                {user?.department?.code || 'Campus'} • {user?.rollNumberOrEmpId}
-              </div>
+            <div className="text-xs font-semibold text-slate-800 whitespace-nowrap">
+              <span className="font-bold text-slate-900">{user?.name || 'User'}</span>
+              <span className="mx-1.5 text-slate-400 font-normal">|</span>
+              <span className="text-[#F26522] font-bold">
+                {user?.role === 'SUPER_ADMIN'
+                  ? 'Admin'
+                  : user?.role === 'HIGHER_MANAGEMENT'
+                  ? 'Management'
+                  : user?.role
+                  ? user.role.charAt(0) + user.role.slice(1).toLowerCase().replace(/_/g, ' ')
+                  : 'User'}
+              </span>
             </div>
-            <span
-              className={`hidden md:inline-flex px-1.5 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wider rounded-md border ${
-                roleColors[user?.role] || 'bg-slate-100 text-slate-600'
-              }`}
-            >
-              {user?.role?.replace(/_/g, ' ')}
-            </span>
           </div>
 
           {/* Logout Button */}

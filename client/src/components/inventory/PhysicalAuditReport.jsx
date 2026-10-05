@@ -121,51 +121,25 @@ export const PhysicalAuditReport = () => {
 
   return (
     <div className="space-y-5 animate-fade-in">
-      {/* 1. Metrics Overview Cards */}
+      {/* 1. Metrics Overview Cards (Single-Select Audit Status Cards) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Overdue (6+ Months)"
-          value={metrics.totalOverdue6Months || 0}
-          subtitle="Assets unverified > 180 days"
+          title="Pending / Unverified"
+          value={metrics.statusCounts?.UNVERIFIED ?? 0}
+          subtitle="Never Verified / Overdue"
           icon={Clock}
           color="orange"
-          active={period === '6_MONTHS'}
+          active={auditStatus === 'UNVERIFIED'}
           onClick={() => {
-            setPeriod('6_MONTHS');
-            setPage(1);
-          }}
-        />
-
-        <StatCard
-          title="Overdue (1+ Year)"
-          value={metrics.totalOverdue1Year || 0}
-          subtitle="Critical custody risk > 365 days"
-          icon={AlertTriangle}
-          color="red"
-          active={period === '1_YEAR'}
-          onClick={() => {
-            setPeriod('1_YEAR');
-            setPage(1);
-          }}
-        />
-
-        <StatCard
-          title="Student-Assigned Overdue"
-          value={metrics.studentAssignedOverdueCount || 0}
-          subtitle="Laptops in active student custody"
-          icon={GraduationCap}
-          color="amber"
-          active={onlyStudentAssigned}
-          onClick={() => {
-            setOnlyStudentAssigned((prev) => !prev);
+            setAuditStatus(auditStatus === 'UNVERIFIED' ? '' : 'UNVERIFIED');
             setPage(1);
           }}
         />
 
         <StatCard
           title="Physical OK"
-          value={metrics.statusCounts?.PHYSICAL_OK || 0}
-          subtitle="Verified undamaged hardware"
+          value={metrics.statusCounts?.PHYSICAL_OK ?? 0}
+          subtitle="Inspected Good Condition"
           icon={ShieldCheck}
           color="green"
           active={auditStatus === 'PHYSICAL_OK'}
@@ -174,20 +148,47 @@ export const PhysicalAuditReport = () => {
             setPage(1);
           }}
         />
+
+        <StatCard
+          title="Needs Repair"
+          value={metrics.statusCounts?.NEEDS_REPAIR ?? 0}
+          subtitle="Hardware Faults Flagged"
+          icon={Wrench}
+          color="amber"
+          active={auditStatus === 'NEEDS_REPAIR'}
+          onClick={() => {
+            setAuditStatus(auditStatus === 'NEEDS_REPAIR' ? '' : 'NEEDS_REPAIR');
+            setPage(1);
+          }}
+        />
+
+        <StatCard
+          title="Missing / At Risk"
+          value={metrics.statusCounts?.MISSING ?? 0}
+          subtitle="Untraceable Devices"
+          icon={AlertTriangle}
+          color="red"
+          active={auditStatus === 'MISSING'}
+          onClick={() => {
+            setAuditStatus(auditStatus === 'MISSING' ? '' : 'MISSING');
+            setPage(1);
+          }}
+        />
       </div>
 
-      {/* 2. Interactive Control Bar */}
+      {/* 2. Interactive Control Bar (Polished layout without overlapping) */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           {/* Audit Verification Period Selector */}
           <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-100 rounded-xl">
             <button
+              type="button"
               onClick={() => {
                 setPeriod('6_MONTHS');
                 setPage(1);
               }}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                period === '6_MONTHS'
+                period === '6_MONTHS' && !auditStatus
                   ? 'bg-white text-[#F26522] shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
@@ -195,12 +196,13 @@ export const PhysicalAuditReport = () => {
               Overdue &gt; 6 Months
             </button>
             <button
+              type="button"
               onClick={() => {
                 setPeriod('1_YEAR');
                 setPage(1);
               }}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                period === '1_YEAR'
+                period === '1_YEAR' && !auditStatus
                   ? 'bg-white text-rose-600 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
@@ -208,12 +210,14 @@ export const PhysicalAuditReport = () => {
               Overdue &gt; 1 Year
             </button>
             <button
+              type="button"
               onClick={() => {
                 setPeriod('ALL');
+                setAuditStatus('');
                 setPage(1);
               }}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                period === 'ALL'
+                period === 'ALL' && !auditStatus
                   ? 'bg-white text-slate-900 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
@@ -222,9 +226,9 @@ export const PhysicalAuditReport = () => {
             </button>
           </div>
 
-          {/* Student-Assigned Highlight Toggle */}
-          <div className="flex items-center space-x-3">
-            <label className="inline-flex items-center space-x-2 cursor-pointer bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl hover:bg-slate-100 transition">
+          {/* Student-Assigned Highlight Toggle & Status Filter */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            <label className="inline-flex items-center space-x-2 cursor-pointer bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl hover:bg-slate-100 transition shrink-0">
               <input
                 type="checkbox"
                 checked={onlyStudentAssigned}
@@ -232,7 +236,7 @@ export const PhysicalAuditReport = () => {
                   setOnlyStudentAssigned(e.target.checked);
                   setPage(1);
                 }}
-                className="w-4 h-4 text-[#F26522] rounded border-slate-300 focus:ring-brand-500"
+                className="w-4 h-4 text-[#F26522] rounded border-slate-300 focus:ring-brand-500 cursor-pointer"
               />
               <span className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
                 <GraduationCap className="w-3.5 h-3.5 text-[#F26522]" />
@@ -240,20 +244,20 @@ export const PhysicalAuditReport = () => {
               </span>
             </label>
 
-            {/* Audit Status Filter */}
+            {/* Audit Status Filter Dropdown */}
             <select
               value={auditStatus}
               onChange={(e) => {
                 setAuditStatus(e.target.value);
                 setPage(1);
               }}
-              className="px-3 py-1.5 text-xs font-semibold bg-white border border-slate-200 rounded-xl text-slate-700 outline-none"
+              className="px-3 py-1.5 text-xs font-semibold bg-white border border-slate-200 rounded-xl text-slate-700 outline-none cursor-pointer focus:border-[#F26522] focus:ring-1 focus:ring-orange-500/20 shadow-2xs"
             >
               <option value="">All Verification Statuses</option>
-              <option value="UNVERIFIED">Never Verified Only</option>
-              <option value="PHYSICAL_OK">Physical OK</option>
+              <option value="UNVERIFIED">Pending / Unverified</option>
+              <option value="PHYSICAL_OK">Physical OK (Verified)</option>
               <option value="NEEDS_REPAIR">Needs Repair</option>
-              <option value="MISSING">Missing</option>
+              <option value="MISSING">Missing / At Risk</option>
             </select>
           </div>
         </div>

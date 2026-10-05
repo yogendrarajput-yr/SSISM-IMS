@@ -16,9 +16,23 @@ export const loginSchema = z.object({
 export const createAssetSchema = z.object({
   assetTag: z.string().min(3, 'Asset Tag must be at least 3 characters'),
   serialNumber: z.string().min(3, 'Serial Number must be at least 3 characters'),
-  category: z.enum(['LAPTOP', 'ROUTER', 'CCTV', 'SMART_TV', 'INTERACTIVE_WHITEBOARD', 'PERIPHERAL', 'OTHER']).default('LAPTOP'),
+  category: z.enum([
+    'LAPTOP',
+    'WHITEBOARD_PANEL',
+    'SMART_TV',
+    'ROUTER',
+    'AIR_FIBER',
+    'PRINTER',
+    'MONITOR',
+    'CCTV',
+    'INTERACTIVE_WHITEBOARD',
+    'PERIPHERAL',
+    'OTHER',
+  ]).default('LAPTOP'),
   make: z.string().min(2, 'Make/Brand is required'),
   model: z.string().min(2, 'Model is required'),
+  modelNumber: z.string().optional().nullable(),
+  location: z.string().optional().nullable(),
   processor: z.string().optional(),
   generation: z.string().optional().nullable(),
   ram: z.string().optional(),
@@ -38,6 +52,19 @@ export const createAssetSchema = z.object({
   remarks: z.string().optional().nullable(),
   departmentId: z.number().int().positive().optional().nullable(),
   attributes: z.record(z.any()).optional().nullable(),
+
+  // AirFiber / Routers Specific
+  simNumber: z.string().optional().nullable(),
+  serviceProvider: z.string().optional().nullable(),
+  planDetails: z.string().optional().nullable(),
+  lastRechargeDate: z.string().datetime().optional().nullable().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable()),
+  rechargeExpiryDate: z.string().datetime().optional().nullable().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable()),
+  monthlyCost: z.number().nonnegative().optional().nullable(),
+
+  // Printers / Monitors / Panels Specific
+  ipAddress: z.string().optional().nullable(),
+  screenSize: z.string().optional().nullable(),
+  inkCartridgeType: z.string().optional().nullable(),
 });
 
 /**
@@ -102,5 +129,26 @@ export const updateFeeSchema = z.object({
 export const physicalVerifySchema = z.object({
   auditStatus: z.enum(['PHYSICAL_OK', 'NEEDS_REPAIR', 'MISSING']).default('PHYSICAL_OK'),
   remarks: z.string().optional().nullable(),
+});
+
+/**
+ * AirFiber & Router recharge logging schema.
+ */
+export const logRechargeSchema = z.object({
+  amount: z.number().positive('Recharge amount must be greater than 0').optional(),
+  rechargeAmount: z.number().positive('Recharge amount must be greater than 0').optional(),
+  validityDays: z.number().int().positive('Validity days must be positive').default(30),
+  transactionId: z.string().optional().nullable(),
+  receiptNumber: z.string().optional().nullable(),
+  paymentMode: z.string().optional().default('UPI'),
+  rechargeDate: z.string().datetime().optional().nullable().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable()),
+  newExpiryDate: z.string().datetime().optional().nullable().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable()),
+  serviceProvider: z.string().optional().nullable(),
+  planDetails: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+  remarks: z.string().optional().nullable(),
+}).refine(data => data.amount !== undefined || data.rechargeAmount !== undefined, {
+  message: 'Recharge amount is required and must be greater than 0',
+  path: ['amount'],
 });
 

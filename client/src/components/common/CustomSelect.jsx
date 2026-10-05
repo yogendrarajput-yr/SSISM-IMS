@@ -60,7 +60,7 @@ export const CustomSelect = ({
   };
 
   return (
-    <div className={`relative ${className}`} ref={containerRef}>
+    <div className={`relative ${className} ${isOpen ? 'z-[90]' : 'z-10'}`} ref={containerRef}>
       {/* Trigger Button */}
       <button
         type="button"
@@ -84,7 +84,7 @@ export const CustomSelect = ({
 
       {/* Floating Dropdown Menu */}
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1.5 w-full min-w-[190px] bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-100">
+        <div className="absolute top-full left-0 mt-1.5 w-full min-w-[190px] bg-white rounded-xl shadow-2xl border border-slate-200/90 py-1.5 z-[100] max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-100">
           {options.length === 0 ? (
             <div className="px-3 py-2 text-xs text-slate-400 italic">No options available</div>
           ) : (

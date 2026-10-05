@@ -30,9 +30,6 @@ export const Users = () => {
               <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
                 Campus Users & Custody Directory
               </h1>
-              <p className="text-xs text-slate-500 font-medium">
-                Unified institutional registry for verified students, academic faculty, and administrative staff
-              </p>
             </div>
           </div>
         </div>

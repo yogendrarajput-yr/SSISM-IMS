@@ -122,7 +122,7 @@ export const ReturnModal = ({ isOpen, onClose, allocation, onSuccess }) => {
           <select
             value={returnCondition}
             onChange={(e) => handleConditionChange(e.target.value)}
-            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-[#F26522] focus:ring-2 focus:ring-orange-500/20 text-xs font-semibold outline-none bg-white text-slate-800"
+            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-[#F26522] focus:ring-2 focus:ring-orange-500/20 text-xs font-semibold outline-none bg-white text-slate-800 cursor-pointer shadow-2xs"
           >
             <option value="GOOD">Good / Tested (Ready for Reissue)</option>
             <option value="BRAND_NEW">Pristine / Like Brand New</option>
@@ -178,7 +178,7 @@ export const ReturnModal = ({ isOpen, onClose, allocation, onSuccess }) => {
                   <select
                     value={fineReason}
                     onChange={(e) => setFineReason(e.target.value)}
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:border-[#F26522] outline-none bg-white font-medium"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:border-[#F26522] focus:ring-2 focus:ring-orange-500/20 outline-none bg-white font-medium cursor-pointer shadow-2xs"
                   >
                     <option value="Charger Damaged / Broken">Charger Damaged / Broken (₹500 - ₹1200)</option>
                     <option value="Charger Missing">Charger Missing / Not Returned</option>

@@ -17,6 +17,14 @@ import {
   Wrench,
   ExternalLink,
   CheckCircle,
+  Radio,
+  Zap,
+  Wifi,
+  AlertTriangle,
+  CheckCircle2,
+  ShieldAlert,
+  Printer,
+  Tv,
 } from 'lucide-react';
 
 /**
@@ -32,6 +40,7 @@ import {
  * @param {Object} props.asset - Asset data object
  * @param {Function} [props.onIssue] - Issue laptop callback
  * @param {Function} [props.onMaintenance] - Log maintenance callback
+ * @param {Function} [props.onRecharge] - Log recharge callback
  */
 export const AssetDrawer = ({
   isOpen,
@@ -40,6 +49,7 @@ export const AssetDrawer = ({
   onIssue,
   onMaintenance,
   onVerify,
+  onRecharge,
 }) => {
   const navigate = useNavigate();
   const { isStaff } = useAuth();
@@ -121,10 +131,22 @@ export const AssetDrawer = ({
         {isStaff && (
           <div className="px-5 py-2.5 bg-white border-b border-slate-100 flex items-center justify-between">
             <div className="text-[11px] font-semibold text-slate-500">
-              Department: <strong className="text-slate-800 font-mono">{asset.department?.code || 'Campus'}</strong>
+              Category: <strong className="text-slate-800 font-mono">{asset.category}</strong> • Dept: <strong className="text-slate-800 font-mono">{asset.department?.code || 'Campus'}</strong>
             </div>
             <div className="flex items-center space-x-2">
-              {asset.status === 'AVAILABLE' && (
+              {(asset.category === 'AIR_FIBER' || asset.category === 'ROUTER') && (
+                <button
+                  onClick={() => {
+                    onClose();
+                    if (onRecharge) onRecharge(asset);
+                  }}
+                  className="px-3 py-1.5 bg-[#F26522] hover:bg-orange-600 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center space-x-1"
+                >
+                  <Zap className="w-3.5 h-3.5 fill-current" />
+                  <span>Log Recharge</span>
+                </button>
+              )}
+              {asset.status === 'AVAILABLE' && (asset.category === 'LAPTOP' || asset.category === 'MONITOR' || asset.category === 'PRINTER') && (
                 <button
                   onClick={() => {
                     onClose();
@@ -132,7 +154,7 @@ export const AssetDrawer = ({
                   }}
                   className="px-3 py-1.5 bg-[#F26522] hover:bg-orange-600 text-white font-bold text-xs rounded-xl shadow-xs transition"
                 >
-                  + Issue Laptop
+                  + Issue Asset
                 </button>
               )}
               <button
@@ -151,75 +173,191 @@ export const AssetDrawer = ({
 
         {/* Scrollable Content Body */}
         <div className="flex-1 p-5 space-y-6 overflow-y-auto">
-          {/* SECTION 1: HARDWARE ARCHITECTURE */}
+          {/* SECTION 1: DYNAMIC HARDWARE / CONNECTION SPECIFICATIONS */}
           <div className="space-y-2.5">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-1.5">
-              <Cpu className="w-4 h-4 text-[#F26522]" />
-              <span>Hardware Specifications</span>
+              {asset.category === 'AIR_FIBER' || asset.category === 'ROUTER' ? (
+                <Radio className="w-4 h-4 text-[#F26522]" />
+              ) : asset.category === 'WHITEBOARD_PANEL' || asset.category === 'SMART_TV' ? (
+                <Tv className="w-4 h-4 text-[#F26522]" />
+              ) : asset.category === 'PRINTER' ? (
+                <Printer className="w-4 h-4 text-[#F26522]" />
+              ) : (
+                <Cpu className="w-4 h-4 text-[#F26522]" />
+              )}
+              <span>
+                {asset.category === 'AIR_FIBER' || asset.category === 'ROUTER'
+                  ? 'Connection & Subscription Specs'
+                  : 'Hardware Specifications'}
+              </span>
             </h3>
-            <div className="grid grid-cols-2 gap-2.5">
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
-                <span className="text-[10px] font-bold uppercase text-slate-400 block">Processor</span>
-                <span className="text-xs font-bold text-slate-800">{asset.processor || 'Standard'}</span>
-                {asset.generation && (
-                  <span className="text-[10.5px] text-slate-500 block font-medium mt-0.5">{asset.generation}</span>
+
+            {asset.category === 'AIR_FIBER' || asset.category === 'ROUTER' ? (
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block">Service Provider</span>
+                  <span className="text-xs font-bold text-slate-800">{asset.serviceProvider || 'JIO'}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block">SIM / Account ID</span>
+                  <span className="text-xs font-mono font-bold text-slate-800">{asset.simNumber || 'Direct Fiber'}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block">Plan Details</span>
+                  <span className="text-xs font-bold text-slate-800">{asset.planDetails || 'Standard Unlimited'}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block">Monthly Cost</span>
+                  <span className="text-xs font-bold text-slate-800">
+                    {asset.monthlyCost ? `₹${Number(asset.monthlyCost).toLocaleString('en-IN')}` : 'N/A'}
+                  </span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block">Recharge Expiry</span>
+                  <span className="text-xs font-bold text-slate-800">
+                    {asset.rechargeExpiryDate ? new Date(asset.rechargeExpiryDate).toLocaleDateString('en-GB') : 'No Date Set'}
+                  </span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block">Installed Location</span>
+                  <span className="text-xs font-bold text-slate-800">{asset.location || 'Campus Wide'}</span>
+                </div>
+              </div>
+            ) : asset.category === 'WHITEBOARD_PANEL' || asset.category === 'SMART_TV' || asset.category === 'MONITOR' ? (
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block">Screen Size</span>
+                  <span className="text-xs font-bold text-slate-800">{asset.screenSize || asset.displaySize || '65 inch 4K'}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block">Model Number</span>
+                  <span className="text-xs font-bold text-slate-800">{asset.modelNumber || 'Standard'}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block">Installed Room / Lab</span>
+                  <span className="text-xs font-bold text-slate-800">{asset.location || 'Smart Classroom'}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block">Make & Model</span>
+                  <span className="text-xs font-bold text-slate-800">{asset.make} {asset.model}</span>
+                </div>
+              </div>
+            ) : asset.category === 'PRINTER' ? (
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block">IP Address (Static)</span>
+                  <span className="text-xs font-mono font-bold text-slate-800">{asset.ipAddress || 'DHCP'}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block">Ink / Toner Cartridge</span>
+                  <span className="text-xs font-bold text-slate-800">{asset.inkCartridgeType || 'Standard'}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block">Installed Location</span>
+                  <span className="text-xs font-bold text-slate-800">{asset.location || 'Campus Office'}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block">Make & Model</span>
+                  <span className="text-xs font-bold text-slate-800">{asset.make} {asset.model}</span>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block">Processor</span>
+                  <span className="text-xs font-bold text-slate-800">{asset.processor || 'Standard'}</span>
+                  {asset.generation && (
+                    <span className="text-[10.5px] text-slate-500 block font-medium mt-0.5">{asset.generation}</span>
+                  )}
+                </div>
+
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block">Memory (RAM)</span>
+                  <span className="text-xs font-bold text-slate-800">{asset.ram || '16GB DDR4'}</span>
+                </div>
+
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block">Storage (SSD/ROM)</span>
+                  <span className="text-xs font-bold text-slate-800">{asset.storage || '512GB SSD'}</span>
+                </div>
+
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block">Display Size</span>
+                  <span className="text-xs font-bold text-slate-800">{asset.displaySize || '14 inch'}</span>
+                </div>
+
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block">Color</span>
+                  <span className="text-xs font-bold text-slate-800">{asset.color || 'Platinum Silver'}</span>
+                </div>
+
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block">Make & Model</span>
+                  <span className="text-xs font-bold text-slate-800">{asset.make} {asset.model}</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* SECTION 2: ACCESSORIES / RECHARGE STATUS */}
+          {asset.category === 'LAPTOP' ? (
+            <div className="space-y-2.5">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                <span>Included Accessories</span>
+              </h3>
+              <div className="grid grid-cols-3 gap-2.5 text-xs">
+                <div className="p-2.5 rounded-xl border border-slate-200 bg-slate-50">
+                  <span className="text-slate-400 text-[10px] block uppercase font-bold">Charger Serial:</span>
+                  <span className="font-mono font-bold text-slate-800 text-[11px]">
+                    {asset.chargerSerial || 'OEM Charger'}
+                  </span>
+                </div>
+                <div className="p-2.5 rounded-xl border border-slate-200 bg-slate-50">
+                  <span className="text-slate-400 text-[10px] block uppercase font-bold">Carry Bag:</span>
+                  <span className="font-bold text-slate-800 text-[11px]">
+                    {asset.hasBag ? 'Yes (Verified ✓)' : 'No'}
+                  </span>
+                </div>
+                <div className="p-2.5 rounded-xl border border-slate-200 bg-slate-50">
+                  <span className="text-slate-400 text-[10px] block uppercase font-bold">External Mouse:</span>
+                  <span className="font-bold text-slate-800 text-[11px]">
+                    {asset.hasMouse ? 'Yes (Issued ✓)' : 'No'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : (asset.category === 'AIR_FIBER' || asset.category === 'ROUTER') ? (
+            <div className="space-y-2.5">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-1.5">
+                <Zap className="w-4 h-4 text-orange-600" />
+                <span>Recharge Status & Expiry</span>
+              </h3>
+              <div className="p-3.5 rounded-xl bg-orange-50/60 border border-orange-200 flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-bold text-orange-950">
+                    Expiry: {asset.rechargeExpiryDate ? new Date(asset.rechargeExpiryDate).toLocaleDateString('en-GB') : 'No Active Plan'}
+                  </div>
+                  {asset.lastRechargeDate && (
+                    <div className="text-[10px] text-orange-700 mt-0.5">
+                      Last Recharged: {new Date(asset.lastRechargeDate).toLocaleDateString('en-GB')}
+                    </div>
+                  )}
+                </div>
+                {isStaff && (
+                  <button
+                    onClick={() => {
+                      onClose();
+                      if (onRecharge) onRecharge(asset);
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-[#F26522] hover:bg-orange-600 text-white font-bold text-xs shadow-xs"
+                  >
+                    Quick Recharge
+                  </button>
                 )}
               </div>
-
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
-                <span className="text-[10px] font-bold uppercase text-slate-400 block">Memory (RAM)</span>
-                <span className="text-xs font-bold text-slate-800">{asset.ram || '16GB DDR4'}</span>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
-                <span className="text-[10px] font-bold uppercase text-slate-400 block">Storage (SSD/ROM)</span>
-                <span className="text-xs font-bold text-slate-800">{asset.storage || '512GB SSD'}</span>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
-                <span className="text-[10px] font-bold uppercase text-slate-400 block">Display Size</span>
-                <span className="text-xs font-bold text-slate-800">{asset.displaySize || '14 inch'}</span>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
-                <span className="text-[10px] font-bold uppercase text-slate-400 block">Color</span>
-                <span className="text-xs font-bold text-slate-800">{asset.color || 'Platinum Silver'}</span>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
-                <span className="text-[10px] font-bold uppercase text-slate-400 block">Make & Model</span>
-                <span className="text-xs font-bold text-slate-800">{asset.make} {asset.model}</span>
-              </div>
             </div>
-          </div>
-
-          {/* SECTION 2: ACCESSORIES CHECKLIST */}
-          <div className="space-y-2.5">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-1.5">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              <span>Included Accessories</span>
-            </h3>
-            <div className="grid grid-cols-3 gap-2.5 text-xs">
-              <div className="p-2.5 rounded-xl border border-slate-200 bg-slate-50">
-                <span className="text-slate-400 text-[10px] block uppercase font-bold">Charger Serial:</span>
-                <span className="font-mono font-bold text-slate-800 text-[11px]">
-                  {asset.chargerSerial || 'OEM Charger'}
-                </span>
-              </div>
-              <div className="p-2.5 rounded-xl border border-slate-200 bg-slate-50">
-                <span className="text-slate-400 text-[10px] block uppercase font-bold">Carry Bag:</span>
-                <span className="font-bold text-slate-800 text-[11px]">
-                  {asset.hasBag ? 'Yes (Verified ✓)' : 'No'}
-                </span>
-              </div>
-              <div className="p-2.5 rounded-xl border border-slate-200 bg-slate-50">
-                <span className="text-slate-400 text-[10px] block uppercase font-bold">External Mouse:</span>
-                <span className="font-bold text-slate-800 text-[11px]">
-                  {asset.hasMouse ? 'Yes (Issued ✓)' : 'No'}
-                </span>
-              </div>
-            </div>
-          </div>
+          ) : null}
 
           {/* SECTION 3: CUSTODY & HOLDER STATUS */}
           <div className="space-y-2.5">

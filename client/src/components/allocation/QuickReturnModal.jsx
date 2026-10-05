@@ -444,7 +444,7 @@ export const QuickReturnModal = ({
             <select
               value={returnCondition}
               onChange={(e) => handleConditionChange(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-xs font-semibold outline-none bg-white text-slate-800"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-xs font-semibold outline-none bg-white text-slate-800 cursor-pointer shadow-2xs"
             >
               <option value="GOOD">Good / Tested (Ready for Reissue)</option>
               <option value="BRAND_NEW">Pristine / Like Brand New</option>
@@ -499,7 +499,7 @@ export const QuickReturnModal = ({
                     <select
                       value={fineReason}
                       onChange={(e) => setFineReason(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium bg-white outline-none focus:border-emerald-500"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium bg-white outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 cursor-pointer shadow-2xs"
                     >
                       <option value="Charger Damaged / Broken">Charger Damaged / Broken</option>
                       <option value="Missing Power Adapter / Cable">Missing Power Adapter / Cable</option>

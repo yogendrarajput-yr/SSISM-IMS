@@ -13,11 +13,19 @@ import {
   getDashboardStats,
   verifyAsset,
   getAuditOverdueReport,
+  logRecharge,
+  getRechargeHistory,
+  getRechargeDueReport,
 } from '../controllers/asset.controller.js';
 import { authenticate } from '../middlewares/auth.middleware.js';
 import { authorizeRoles } from '../middlewares/rbac.middleware.js';
 import { validate } from '../middlewares/validate.middleware.js';
-import { createAssetSchema, updateAssetSchema, physicalVerifySchema } from '../utils/validators.js';
+import {
+  createAssetSchema,
+  updateAssetSchema,
+  physicalVerifySchema,
+  logRechargeSchema,
+} from '../utils/validators.js';
 
 /**
  * Asset Routes (/api/assets)
@@ -31,8 +39,13 @@ router.use(authenticate);
 router.get('/stats', getDashboardStats);
 router.get('/search', searchAssets);
 router.get('/audit/overdue-report', getAuditOverdueReport);
+router.get('/recharge/due-report', getRechargeDueReport);
 router.get('/', getAssets);
+router.get('/:id/recharge-history', getRechargeHistory);
 router.get('/:id', getAsset);
+
+// AirFiber & Router recurring recharge action
+router.post('/:id/recharge', authorizeRoles('SUPER_ADMIN', 'STAFF'), validate(logRechargeSchema), logRecharge);
 
 // Physical verification action on hardware assets
 router.post('/:id/verify', authorizeRoles('SUPER_ADMIN', 'STAFF'), validate(physicalVerifySchema), verifyAsset);
