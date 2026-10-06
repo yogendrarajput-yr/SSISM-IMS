@@ -137,38 +137,38 @@ export const Login = () => {
             <div className="grid grid-cols-2 gap-2 text-xs">
               <button
                 type="button"
-                onClick={() => fillCredentials('superadmin@ssism.org', 'Admin@123')}
+                onClick={() => fillCredentials('superadmin@ssism.edu', 'Admin@123')}
                 className="px-2.5 py-2 rounded-lg bg-slate-50 hover:bg-orange-50 text-slate-800 font-semibold border border-slate-200 hover:border-orange-300 transition text-left"
               >
                 <div className="font-bold text-[10.5px] text-slate-900">Super Admin</div>
-                <div className="text-[9.5px] text-slate-500 truncate">superadmin@ssism.org</div>
+                <div className="text-[9.5px] text-slate-500 truncate">superadmin@ssism.edu</div>
               </button>
 
               <button
                 type="button"
-                onClick={() => fillCredentials('staff@ssism.org', 'Staff@123')}
+                onClick={() => fillCredentials('staff@ssism.edu', 'Staff@123')}
                 className="px-2.5 py-2 rounded-lg bg-slate-50 hover:bg-orange-50 text-slate-800 font-semibold border border-slate-200 hover:border-orange-300 transition text-left"
               >
                 <div className="font-bold text-[10.5px] text-[#F26522]">Inventory Staff</div>
-                <div className="text-[9.5px] text-slate-500 truncate">staff@ssism.org</div>
+                <div className="text-[9.5px] text-slate-500 truncate">staff@ssism.edu</div>
               </button>
 
               <button
                 type="button"
-                onClick={() => fillCredentials('accountant@ssism.org', 'Staff@123')}
+                onClick={() => fillCredentials('accountant@ssism.edu', 'Staff@123')}
                 className="px-2.5 py-2 rounded-lg bg-slate-50 hover:bg-orange-50 text-slate-800 font-semibold border border-slate-200 hover:border-orange-300 transition text-left"
               >
                 <div className="font-bold text-[10.5px] text-emerald-700">Accounts / Fees</div>
-                <div className="text-[9.5px] text-slate-500 truncate">accountant@ssism.org</div>
+                <div className="text-[9.5px] text-slate-500 truncate">accountant@ssism.edu</div>
               </button>
 
               <button
                 type="button"
-                onClick={() => fillCredentials('auditor@ssism.org', 'Dean@123')}
+                onClick={() => fillCredentials('auditor@ssism.edu', 'Staff@123')}
                 className="px-2.5 py-2 rounded-lg bg-slate-50 hover:bg-orange-50 text-slate-800 font-semibold border border-slate-200 hover:border-orange-300 transition text-left"
               >
                 <div className="font-bold text-[10.5px] text-amber-700">Auditor / Dean</div>
-                <div className="text-[9.5px] text-slate-500 truncate">auditor@ssism.org</div>
+                <div className="text-[9.5px] text-slate-500 truncate">auditor@ssism.edu</div>
               </button>
             </div>
           </div>
