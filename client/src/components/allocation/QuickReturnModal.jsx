@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../common/Modal';
+import { CustomSelect } from '../common/CustomSelect';
 import { api } from '../../services/api';
 import { Badge } from '../common/Badge';
 import {
@@ -441,16 +442,18 @@ export const QuickReturnModal = ({
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
               Physical Condition Upon Return *
             </label>
-            <select
+            <CustomSelect
               value={returnCondition}
-              onChange={(e) => handleConditionChange(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-xs font-semibold outline-none bg-white text-slate-800 cursor-pointer shadow-2xs"
-            >
-              <option value="GOOD">Good / Tested (Ready for Reissue)</option>
-              <option value="BRAND_NEW">Pristine / Like Brand New</option>
-              <option value="SCRATCHES">Minor Scratches / Cosmetic Wear</option>
-              <option value="DAMAGED">Damaged / Broken Screen / Hardware Fault</option>
-            </select>
+              onChange={(val) => handleConditionChange(val)}
+              options={[
+                { value: 'GOOD', label: 'Good / Tested (Ready for Reissue)' },
+                { value: 'BRAND_NEW', label: 'Pristine / Like Brand New' },
+                { value: 'SCRATCHES', label: 'Minor Scratches / Cosmetic Wear' },
+                { value: 'DAMAGED', label: 'Damaged / Broken Screen / Hardware Fault' },
+              ]}
+              className="w-full"
+              buttonClassName="py-2.5 text-xs font-semibold rounded-xl"
+            />
           </div>
 
           {returnCondition === 'DAMAGED' && (
@@ -496,19 +499,21 @@ export const QuickReturnModal = ({
                     <label className="block text-[11px] font-bold text-slate-600 mb-1">
                       Charge Reason / Defect Type *
                     </label>
-                    <select
+                    <CustomSelect
                       value={fineReason}
-                      onChange={(e) => setFineReason(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium bg-white outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 cursor-pointer shadow-2xs"
-                    >
-                      <option value="Charger Damaged / Broken">Charger Damaged / Broken</option>
-                      <option value="Missing Power Adapter / Cable">Missing Power Adapter / Cable</option>
-                      <option value="Screen Scratch / Cracked Display">Screen Scratch / Cracked Display</option>
-                      <option value="Body Dent / Casing Cracked">Body Dent / Casing Cracked</option>
-                      <option value="Keyboard Keys Missing / Liquid Spill">Keyboard Keys Missing / Liquid Spill</option>
-                      <option value="Missing Laptop Bag / Accessories">Missing Laptop Bag / Accessories</option>
-                      <option value="OTHER">Other Reason (Specify below)</option>
-                    </select>
+                      onChange={(val) => setFineReason(val)}
+                      options={[
+                        { value: 'Charger Damaged / Broken', label: 'Charger Damaged / Broken' },
+                        { value: 'Missing Power Adapter / Cable', label: 'Missing Power Adapter / Cable' },
+                        { value: 'Screen Scratch / Cracked Display', label: 'Screen Scratch / Cracked Display' },
+                        { value: 'Body Dent / Casing Cracked', label: 'Body Dent / Casing Cracked' },
+                        { value: 'Keyboard Keys Missing / Liquid Spill', label: 'Keyboard Keys Missing / Liquid Spill' },
+                        { value: 'Missing Laptop Bag / Accessories', label: 'Missing Laptop Bag / Accessories' },
+                        { value: 'OTHER', label: 'Other Reason (Specify below)' },
+                      ]}
+                      className="w-full"
+                      buttonClassName="py-2 text-xs rounded-xl font-medium"
+                    />
                   </div>
 
                   <div>
@@ -565,15 +570,17 @@ export const QuickReturnModal = ({
                   </label>
 
                   {finePaid && (
-                    <select
+                    <CustomSelect
                       value={finePaymentMode}
-                      onChange={(e) => setFinePaymentMode(e.target.value)}
-                      className="px-2.5 py-1 rounded-lg border border-slate-300 text-xs bg-white font-medium ml-auto"
-                    >
-                      <option value="CASH">Cash Collection</option>
-                      <option value="UPI">UPI / QR Code</option>
-                      <option value="BANK_TRANSFER">Bank Transfer / NEFT</option>
-                    </select>
+                      onChange={(val) => setFinePaymentMode(val)}
+                      options={[
+                        { value: 'CASH', label: 'Cash Collection' },
+                        { value: 'UPI', label: 'UPI / QR Code' },
+                        { value: 'BANK_TRANSFER', label: 'Bank Transfer / NEFT' },
+                      ]}
+                      className="w-48 ml-auto"
+                      buttonClassName="py-1 text-xs rounded-lg font-medium"
+                    />
                   )}
                 </div>
               </div>

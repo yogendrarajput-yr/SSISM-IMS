@@ -58,11 +58,12 @@ const getTransporter = () => {
   const host = process.env.SMTP_HOST || 'smtp.gmail.com';
   const port = Number(process.env.SMTP_PORT) || 587;
   const secure = process.env.SMTP_SECURE === 'true' || port === 465;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+  const user = (process.env.SMTP_USER || 'computerlab@ssism.org').trim();
+  let pass = (process.env.SMTP_PASS || 'hlnzyjytggnvwdyp').replace(/\s+/g, '').trim();
 
-  if (!user || !pass) {
-    return null;
+  // Auto-correct common 14-character typo ('hlnzytggnvwdyp') to valid 16-character password
+  if (pass === 'hlnzytggnvwdyp' || pass.length !== 16) {
+    pass = 'hlnzyjytggnvwdyp';
   }
 
   cachedTransporter = nodemailer.createTransport({

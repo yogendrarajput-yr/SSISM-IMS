@@ -1,5 +1,6 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { CustomSelect } from './CustomSelect';
 
 /**
  * Universal Table Pagination Bar
@@ -42,19 +43,20 @@ export const Pagination = ({
             <label htmlFor="entries-limit-select" className="text-slate-500 font-medium whitespace-nowrap">
               Rows:
             </label>
-            <select
+            <CustomSelect
               id="entries-limit-select"
               value={limit}
-              onChange={(e) => onLimitChange(Number(e.target.value))}
-              className="px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-[#F26522] focus:ring-1 focus:ring-[#F26522] cursor-pointer shadow-2xs"
-              title="Select number of entries to display per page"
-            >
-              <option value={10}>10</option>
-              <option value={15}>15</option>
-              <option value={20}>20</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
+              onChange={(val) => onLimitChange(Number(val))}
+              options={[
+                { value: 10, label: '10' },
+                { value: 15, label: '15' },
+                { value: 20, label: '20' },
+                { value: 50, label: '50' },
+                { value: 100, label: '100' },
+              ]}
+              className="w-18"
+              buttonClassName="px-2.5 py-1 text-xs font-bold rounded-lg border-slate-300 shadow-2xs"
+            />
           </div>
         )}
       </div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../common/Modal';
+import { CustomSelect } from '../common/CustomSelect';
 import { api } from '../../services/api';
 import {
   Radio,
@@ -240,17 +241,19 @@ export const RechargeModal = ({ isOpen, onClose, asset, onSuccess }) => {
                 <label className="block text-[11px] font-bold text-slate-700 mb-1">
                   Service Provider *
                 </label>
-                <select
+                <CustomSelect
                   value={serviceProvider}
-                  onChange={(e) => setServiceProvider(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:ring-2 focus:ring-[#F26522]/30 focus:border-[#F26522] outline-none"
-                >
-                  <option value="JIO">Jio (Reliance Jio 5G AirFiber)</option>
-                  <option value="AIRTEL">Airtel (Xstream AirFiber 5G)</option>
-                  <option value="BSNL">BSNL (Bharat AirFiber Broadband)</option>
-                  <option value="VI">Vodafone Idea (Vi AirFiber)</option>
-                  <option value="OTHER">Other Enterprise ISP</option>
-                </select>
+                  onChange={(val) => setServiceProvider(val)}
+                  options={[
+                    { value: 'JIO', label: 'Jio (Reliance Jio 5G AirFiber)' },
+                    { value: 'AIRTEL', label: 'Airtel (Xstream AirFiber 5G)' },
+                    { value: 'BSNL', label: 'BSNL (Bharat AirFiber Broadband)' },
+                    { value: 'VI', label: 'Vodafone Idea (Vi AirFiber)' },
+                    { value: 'OTHER', label: 'Other Enterprise ISP' },
+                  ]}
+                  className="w-full"
+                  buttonClassName="py-2 font-bold text-slate-800"
+                />
               </div>
 
               {/* Validity Presets & Days */}

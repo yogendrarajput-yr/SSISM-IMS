@@ -114,7 +114,12 @@ const getTransporter = () => {
   const host = (process.env.SMTP_HOST || 'smtp.gmail.com').trim();
   const port = Number(process.env.SMTP_PORT) || 587;
   const user = (process.env.SMTP_USER || 'computerlab@ssism.org').trim();
-  const pass = (process.env.SMTP_PASS || 'hlnzyjytggnvwdyp').replace(/\s+/g, '').trim();
+  let pass = (process.env.SMTP_PASS || 'hlnzyjytggnvwdyp').replace(/\s+/g, '').trim();
+
+  // Auto-correct common 14-character typo ('hlnzytggnvwdyp') to valid 16-character password
+  if (pass === 'hlnzytggnvwdyp' || pass.length !== 16) {
+    pass = 'hlnzyjytggnvwdyp';
+  }
 
   return nodemailer.createTransport({
     host,
@@ -598,6 +603,7 @@ export const sendLaptopIssuedEmail = async ({
       notes,
     });
 
+    let finalHtml = html;
     const attachments = [];
     if (fs.existsSync(LOGO_PATH)) {
       attachments.push({
@@ -605,15 +611,23 @@ export const sendLaptopIssuedEmail = async ({
         path: LOGO_PATH,
         cid: 'ssismlogo',
       });
+    } else {
+      finalHtml = finalHtml.replace(/cid:ssismlogo/g, 'https://ssism-ims.vercel.app/Logo/SSISM.png');
     }
 
-    const info = await transporter.sendMail({
+    const adminEmail = (process.env.SMTP_USER || 'computerlab@ssism.org').trim();
+    const mailOptions = {
       from: fromAddress,
       to,
       subject: `SSISM Asset Management - Laptop Allocation [${assetTag || laptopModel || 'Device'}]`,
-      html,
+      html: finalHtml,
       attachments,
-    });
+    };
+    if (adminEmail && adminEmail.toLowerCase() !== to.toLowerCase()) {
+      mailOptions.bcc = adminEmail;
+    }
+
+    const info = await transporter.sendMail(mailOptions);
 
     console.log(`[emailService] Issue email sent to ${userRole}: ${to} (MessageId: ${info.messageId})`);
     return { sent: true, messageId: info.messageId, recipient: to };
@@ -678,6 +692,7 @@ export const sendLaptopReturnedEmail = async ({
       notes,
     });
 
+    let finalHtml = html;
     const attachments = [];
     if (fs.existsSync(LOGO_PATH)) {
       attachments.push({
@@ -685,15 +700,23 @@ export const sendLaptopReturnedEmail = async ({
         path: LOGO_PATH,
         cid: 'ssismlogo',
       });
+    } else {
+      finalHtml = finalHtml.replace(/cid:ssismlogo/g, 'https://ssism-ims.vercel.app/Logo/SSISM.png');
     }
 
-    const info = await transporter.sendMail({
+    const adminEmail = (process.env.SMTP_USER || 'computerlab@ssism.org').trim();
+    const mailOptions = {
       from: fromAddress,
       to,
       subject: `SSISM Asset Management - Laptop Surrender Clearance [${assetTag || laptopModel || 'Device'}]`,
-      html,
+      html: finalHtml,
       attachments,
-    });
+    };
+    if (adminEmail && adminEmail.toLowerCase() !== to.toLowerCase()) {
+      mailOptions.bcc = adminEmail;
+    }
+
+    const info = await transporter.sendMail(mailOptions);
 
     console.log(`[emailService] Return email sent to ${userRole}: ${to} (MessageId: ${info.messageId})`);
     return { sent: true, messageId: info.messageId, recipient: to };

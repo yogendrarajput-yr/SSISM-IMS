@@ -427,16 +427,18 @@ export const LicenseFees = () => {
 
           <div>
             <label className="block font-bold text-slate-700 uppercase mb-1 text-[10.5px]">Clearance Status *</label>
-            <select
+            <CustomSelect
               value={newStatus}
-              onChange={(e) => setNewStatus(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-xl outline-none focus:border-[#F26522] bg-white"
-            >
-              <option value="PAID">PAID (Clear for Laptop Allocation)</option>
-              <option value="UNPAID">UNPAID (Trigger Warning Alert)</option>
-              <option value="PARTIAL">PARTIAL (Installment Pending)</option>
-              <option value="EXEMPTED">EXEMPTED (Scholarship / Staff Waiver)</option>
-            </select>
+              onChange={(val) => setNewStatus(val)}
+              options={[
+                { value: 'PAID', label: 'PAID (Clear for Laptop Allocation)' },
+                { value: 'UNPAID', label: 'UNPAID (Trigger Warning Alert)' },
+                { value: 'PARTIAL', label: 'PARTIAL (Installment Pending)' },
+                { value: 'EXEMPTED', label: 'EXEMPTED (Scholarship / Staff Waiver)' },
+              ]}
+              className="w-full"
+              buttonClassName="py-2 text-xs rounded-xl"
+            />
           </div>
 
           {newStatus === 'PAID' && (

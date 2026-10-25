@@ -3,6 +3,7 @@ import { api } from '../../services/api';
 import { Badge } from '../common/Badge';
 import { StatCard } from '../common/StatCard';
 import { Pagination } from '../common/Pagination';
+import { CustomSelect } from '../common/CustomSelect';
 import { PhysicalVerifyModal } from './PhysicalVerifyModal';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -245,20 +246,22 @@ export const PhysicalAuditReport = () => {
             </label>
 
             {/* Audit Status Filter Dropdown */}
-            <select
+            <CustomSelect
               value={auditStatus}
-              onChange={(e) => {
-                setAuditStatus(e.target.value);
+              onChange={(val) => {
+                setAuditStatus(val);
                 setPage(1);
               }}
-              className="px-3 py-1.5 text-xs font-semibold bg-white border border-slate-200 rounded-xl text-slate-700 outline-none cursor-pointer focus:border-[#F26522] focus:ring-1 focus:ring-orange-500/20 shadow-2xs"
-            >
-              <option value="">All Verification Statuses</option>
-              <option value="UNVERIFIED">Pending / Unverified</option>
-              <option value="PHYSICAL_OK">Physical OK (Verified)</option>
-              <option value="NEEDS_REPAIR">Needs Repair</option>
-              <option value="MISSING">Missing / At Risk</option>
-            </select>
+              options={[
+                { value: '', label: 'All Verification Statuses' },
+                { value: 'UNVERIFIED', label: 'Pending / Unverified' },
+                { value: 'PHYSICAL_OK', label: 'Physical OK (Verified)' },
+                { value: 'NEEDS_REPAIR', label: 'Needs Repair' },
+                { value: 'MISSING', label: 'Missing / At Risk' },
+              ]}
+              className="w-48"
+              buttonClassName="px-3 py-1.5 text-xs font-semibold rounded-xl border-slate-200 shadow-2xs"
+            />
           </div>
         </div>
 

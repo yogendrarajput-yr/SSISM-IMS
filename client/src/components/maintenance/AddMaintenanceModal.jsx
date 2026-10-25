@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
+import { CustomSelect } from '../common/CustomSelect';
 import { api } from '../../services/api';
 import { Wrench } from 'lucide-react';
 
@@ -76,20 +77,22 @@ export const AddMaintenanceModal = ({ isOpen, onClose, asset = null, onSuccess }
           <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
             Maintenance / Upgrade Type *
           </label>
-          <select
+          <CustomSelect
             value={type}
-            onChange={(e) => setType(e.target.value)}
-            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 text-sm outline-none bg-white text-slate-800"
-          >
-            <option value="RAM_UPGRADE">RAM Upgrade (e.g. 8GB → 16GB / 32GB)</option>
-            <option value="SSD_UPGRADE">SSD Storage Expansion / Replacement</option>
-            <option value="BATTERY_REPLACEMENT">Battery Replacement (OEM Unit)</option>
-            <option value="SCREEN_REPAIR">Display / IPS Panel Screen Repair</option>
-            <option value="KEYBOARD_REPAIR">Keyboard / Trackpad Replacement</option>
-            <option value="GENERAL_SERVICE">Thermal Paste & Dust Cleaning Service</option>
-            <option value="OS_INSTALLATION">OS Reinstallation & Campus Image Setup</option>
-            <option value="OTHER">Other Component Repair</option>
-          </select>
+            onChange={(val) => setType(val)}
+            options={[
+              { value: 'RAM_UPGRADE', label: 'RAM Upgrade (e.g. 8GB → 16GB / 32GB)' },
+              { value: 'SSD_UPGRADE', label: 'SSD Storage Expansion / Replacement' },
+              { value: 'BATTERY_REPLACEMENT', label: 'Battery Replacement (OEM Unit)' },
+              { value: 'SCREEN_REPAIR', label: 'Display / IPS Panel Screen Repair' },
+              { value: 'KEYBOARD_REPAIR', label: 'Keyboard / Trackpad Replacement' },
+              { value: 'GENERAL_SERVICE', label: 'Thermal Paste & Dust Cleaning Service' },
+              { value: 'OS_INSTALLATION', label: 'OS Reinstallation & Campus Image Setup' },
+              { value: 'OTHER', label: 'Other Component Repair' },
+            ]}
+            className="w-full"
+            buttonClassName="py-2.5 text-xs rounded-xl"
+          />
         </div>
 
         {/* Cost & Vendor */}
@@ -142,15 +145,17 @@ export const AddMaintenanceModal = ({ isOpen, onClose, asset = null, onSuccess }
           <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
             Set Asset Status After Operation
           </label>
-          <select
+          <CustomSelect
             value={updateStatusTo}
-            onChange={(e) => setUpdateStatusTo(e.target.value)}
-            className="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 text-sm outline-none bg-white text-slate-800"
-          >
-            <option value="AVAILABLE">AVAILABLE (Service Complete, Ready for Student Allocation)</option>
-            <option value="UNDER_MAINTENANCE">UNDER_MAINTENANCE (Awaiting Parts / Testing)</option>
-            <option value="RETIRED">RETIRED (Beyond Economical Repair / Written Off)</option>
-          </select>
+            onChange={(val) => setUpdateStatusTo(val)}
+            options={[
+              { value: 'AVAILABLE', label: 'AVAILABLE (Service Complete, Ready for Allocation)' },
+              { value: 'UNDER_MAINTENANCE', label: 'UNDER_MAINTENANCE (Awaiting Parts / Testing)' },
+              { value: 'RETIRED', label: 'RETIRED (Beyond Economical Repair / Written Off)' },
+            ]}
+            className="w-full"
+            buttonClassName="py-2 text-xs rounded-xl"
+          />
         </div>
 
         <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">

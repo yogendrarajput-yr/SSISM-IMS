@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Modal } from '../common/Modal';
+import { CustomSelect } from '../common/CustomSelect';
 import { QuickCreateUserModal } from './QuickCreateUserModal';
 import { api } from '../../services/api';
 import {
@@ -298,19 +299,21 @@ export const AllocateModal = ({ isOpen, onClose, selectedAsset = null, onSuccess
             {fetchingData ? (
               <div className="text-xs text-slate-400 py-2">Loading available inventory...</div>
             ) : (
-              <select
+              <CustomSelect
                 value={assetId}
-                onChange={(e) => setAssetId(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 text-xs outline-none text-slate-800 bg-white"
-                required
-              >
-                <option value="">-- Choose an Available Laptop --</option>
-                {filteredAssets.map((asset) => (
-                  <option key={asset.id} value={asset.id}>
-                    {asset.assetTag} • {asset.make} {asset.model} ({asset.processor}, {asset.ram}, {asset.storage}) [Condition: {asset.condition}]
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setAssetId(val)}
+                placeholder="-- Choose an Available Laptop --"
+                options={[
+                  { value: '', label: '-- Choose an Available Laptop --' },
+                  ...filteredAssets.map((asset) => ({
+                    value: String(asset.id),
+                    label: `${asset.assetTag} • ${asset.make} ${asset.model}`,
+                    subtitle: `${asset.processor || ''} ${asset.ram || ''} ${asset.storage || ''} [Condition: ${asset.condition}]`.trim(),
+                  })),
+                ]}
+                className="w-full"
+                buttonClassName="py-2.5 text-xs rounded-xl"
+              />
             )}
           </div>
 
@@ -344,27 +347,29 @@ export const AllocateModal = ({ isOpen, onClose, selectedAsset = null, onSuccess
               />
             </div>
 
-            <select
+            <CustomSelect
               value={recipientId}
-              onChange={(e) => handleRecipientChange(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 text-xs outline-none text-slate-800 bg-white"
-              required
-            >
-              <option value="">
-                {filteredRecipients.length === 0
-                  ? '-- No Unallocated Recipients Found --'
-                  : '-- Choose Eligible Recipient --'}
-              </option>
-              {filteredRecipients.map((rec) => {
-                const feeStatus = rec.licenseFeeRecords?.[0]?.status || 'N/A';
-                return (
-                  <option key={rec.id} value={rec.id}>
-                    {rec.name} ({rec.rollNumberOrEmpId}) • {rec.role} • {rec.department?.code || 'Gen'}
-                    {rec.role === 'STUDENT' ? ` • Fee: ${feeStatus}` : ''}
-                  </option>
-                );
-              })}
-            </select>
+              onChange={(val) => handleRecipientChange(val)}
+              placeholder={filteredRecipients.length === 0 ? '-- No Unallocated Recipients Found --' : '-- Choose Eligible Recipient --'}
+              options={[
+                {
+                  value: '',
+                  label: filteredRecipients.length === 0
+                    ? '-- No Unallocated Recipients Found --'
+                    : '-- Choose Eligible Recipient --',
+                },
+                ...filteredRecipients.map((rec) => {
+                  const feeStatus = rec.licenseFeeRecords?.[0]?.status || 'N/A';
+                  return {
+                    value: String(rec.id),
+                    label: `${rec.name} (${rec.rollNumberOrEmpId}) • ${rec.role} • ${rec.department?.code || 'Gen'}`,
+                    subtitle: rec.role === 'STUDENT' ? `Fee Status: ${feeStatus}` : undefined,
+                  };
+                }),
+              ]}
+              className="w-full"
+              buttonClassName="py-2.5 text-xs rounded-xl"
+            />
 
             {/* Recipient Info Card with Phone & Email Badge */}
             {recipientInfo && (
@@ -456,15 +461,17 @@ export const AllocateModal = ({ isOpen, onClose, selectedAsset = null, onSuccess
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
                 Handover Physical Condition
               </label>
-              <select
+              <CustomSelect
                 value={issueCondition}
-                onChange={(e) => setIssueCondition(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:border-[#D9531E] focus:ring-2 focus:ring-[#D9531E]/20 text-xs outline-none text-slate-800 bg-white"
-              >
-                <option value="BRAND_NEW">Brand New</option>
-                <option value="GOOD">Good / Tested</option>
-                <option value="SCRATCHES">Minor Scratches</option>
-              </select>
+                onChange={(val) => setIssueCondition(val)}
+                options={[
+                  { value: 'BRAND_NEW', label: 'Brand New' },
+                  { value: 'GOOD', label: 'Good / Tested' },
+                  { value: 'SCRATCHES', label: 'Minor Scratches' },
+                ]}
+                className="w-full"
+                buttonClassName="py-2 text-xs rounded-xl"
+              />
             </div>
           </div>
 
