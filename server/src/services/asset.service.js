@@ -1,6 +1,7 @@
 import { prisma } from '../config/db.js';
 import { AppError } from '../utils/appError.js';
 import { logAudit } from './audit.service.js';
+import { toId, toNullableId, toIdArray } from '../utils/idHelper.js';
 
 /**
  * Retrieve paginated asset list with multi-column filtering.
@@ -67,9 +68,9 @@ export const getAssetsList = async ({
 
   if (condition) where.condition = condition;
   if (make) where.make = make;
-  if (departmentId) where.departmentId = Number(departmentId);
+  if (departmentId) where.departmentId = toId(departmentId);
   if (acquisitionSource) where.acquisitionSource = acquisitionSource;
-  if (donorId) where.donorId = Number(donorId);
+  if (donorId) where.donorId = toId(donorId);
 
   const [assets, total, summary, acquisitionSummary, categorySummary, distinctMakes] = await Promise.all([
     prisma.asset.findMany({
@@ -99,12 +100,12 @@ export const getAssetsList = async ({
     prisma.asset.count({ where }),
     prisma.asset.groupBy({
       by: ['status'],
-      where: departmentId ? { departmentId: Number(departmentId) } : {},
+      where: departmentId ? { departmentId: toId(departmentId) } : {},
       _count: { status: true },
     }),
     prisma.asset.groupBy({
       by: ['acquisitionSource'],
-      where: departmentId ? { departmentId: Number(departmentId) } : {},
+      where: departmentId ? { departmentId: toId(departmentId) } : {},
       _count: { acquisitionSource: true },
     }),
     prisma.asset.groupBy({
@@ -169,7 +170,7 @@ export const getAssetsList = async ({
  */
 export const getAssetById = async (id) => {
   const asset = await prisma.asset.findUnique({
-    where: { id: Number(id) },
+    where: { id: toId(id) },
     include: {
       department: { select: { id: true, name: true, code: true } },
       donor: {
@@ -260,8 +261,8 @@ export const createAsset = async (data, actorId, ipAddress) => {
   const asset = await prisma.asset.create({
     data: {
       ...data,
-      donorId: data.donorId ? Number(data.donorId) : null,
-      departmentId: data.departmentId ? Number(data.departmentId) : null,
+      donorId: toNullableId(data.donorId),
+      departmentId: toNullableId(data.departmentId),
       purchaseDate: data.purchaseDate ? new Date(data.purchaseDate) : null,
       warrantyExpiry: data.warrantyExpiry ? new Date(data.warrantyExpiry) : null,
       lastRechargeDate: data.lastRechargeDate ? new Date(data.lastRechargeDate) : null,
@@ -296,7 +297,7 @@ export const createAsset = async (data, actorId, ipAddress) => {
  */
 export const updateAsset = async (id, data, actorId, ipAddress) => {
   const existing = await prisma.asset.findUnique({
-    where: { id: Number(id) },
+    where: { id: toId(id) },
   });
 
   if (!existing) {
@@ -316,10 +317,10 @@ export const updateAsset = async (id, data, actorId, ipAddress) => {
 
   const assetData = { ...data };
   if (assetData.donorId !== undefined) {
-    assetData.donorId = assetData.donorId ? Number(assetData.donorId) : null;
+    assetData.donorId = toNullableId(assetData.donorId);
   }
   if (assetData.departmentId !== undefined) {
-    assetData.departmentId = assetData.departmentId ? Number(assetData.departmentId) : null;
+    assetData.departmentId = toNullableId(assetData.departmentId);
   }
   if (assetData.purchaseDate !== undefined) {
     assetData.purchaseDate = assetData.purchaseDate ? new Date(assetData.purchaseDate) : null;
@@ -338,7 +339,7 @@ export const updateAsset = async (id, data, actorId, ipAddress) => {
   }
 
   const updated = await prisma.asset.update({
-    where: { id: Number(id) },
+    where: { id: toId(id) },
     data: assetData,
     include: {
       department: { select: { id: true, name: true, code: true } },
@@ -367,7 +368,7 @@ export const updateAsset = async (id, data, actorId, ipAddress) => {
  */
 export const archiveAsset = async (id, actorId, ipAddress) => {
   const existing = await prisma.asset.findUnique({
-    where: { id: Number(id) },
+    where: { id: toId(id) },
     include: {
       allocations: { where: { status: 'ACTIVE' } },
     },
@@ -385,7 +386,7 @@ export const archiveAsset = async (id, actorId, ipAddress) => {
   }
 
   const archived = await prisma.asset.update({
-    where: { id: Number(id) },
+    where: { id: toId(id) },
     data: {
       isArchived: true,
       archivedAt: new Date(),
@@ -408,11 +409,11 @@ export const archiveAsset = async (id, actorId, ipAddress) => {
  * Restore a soft-deleted hardware asset back to active inventory.
  */
 export const restoreAsset = async (id, actorId, ipAddress) => {
-  const existing = await prisma.asset.findUnique({ where: { id: Number(id) } });
+  const existing = await prisma.asset.findUnique({ where: { id: toId(id) } });
   if (!existing) throw new AppError('Asset not found.', 404);
 
   const restored = await prisma.asset.update({
-    where: { id: Number(id) },
+    where: { id: toId(id) },
     data: {
       isArchived: false,
       archivedAt: null,
@@ -439,11 +440,11 @@ export const bulkArchiveAssets = async (ids, actorId, ipAddress) => {
     throw new AppError('No asset IDs provided for bulk archiving.', 400);
   }
 
-  const numericIds = ids.map((id) => Number(id)).filter((n) => !isNaN(n) && n > 0);
+  const targetIds = toIdArray(ids);
 
   const activeIssued = await prisma.asset.findMany({
     where: {
-      id: { in: numericIds },
+      id: { in: targetIds },
       OR: [
         { status: 'ISSUED' },
         { allocations: { some: { status: 'ACTIVE' } } },
@@ -461,7 +462,7 @@ export const bulkArchiveAssets = async (ids, actorId, ipAddress) => {
   }
 
   const result = await prisma.asset.updateMany({
-    where: { id: { in: numericIds } },
+    where: { id: { in: targetIds } },
     data: {
       isArchived: true,
       archivedAt: new Date(),
@@ -473,7 +474,7 @@ export const bulkArchiveAssets = async (ids, actorId, ipAddress) => {
     action: 'BULK_ASSET_ARCHIVE',
     entityType: 'Asset',
     entityId: `BULK-ASSET-${Date.now()}`,
-    details: { count: result.count, assetIds: numericIds },
+    details: { count: result.count, assetIds: targetIds },
     ipAddress,
   });
 
@@ -488,7 +489,7 @@ export const bulkArchiveAssets = async (ids, actorId, ipAddress) => {
  * @param {string} ipAddress - Client IP address
  */
 export const deleteAsset = async (id, actorId, ipAddress) => {
-  const assetId = Number(id);
+  const assetId = toId(id);
   const existing = await prisma.asset.findUnique({
     where: { id: assetId },
     include: {
@@ -533,11 +534,11 @@ export const bulkDeleteAssets = async (ids, actorId, ipAddress) => {
     throw new AppError('A list of asset IDs is required for bulk deletion.', 400);
   }
 
-  const numericIds = ids.map(Number);
+  const targetIds = toIdArray(ids);
   const deleted = [];
   const errors = [];
 
-  for (const id of numericIds) {
+  for (const id of targetIds) {
     try {
       await deleteAsset(id, actorId, ipAddress);
       deleted.push(id);
@@ -612,17 +613,17 @@ export const globalQuickSearch = async (query) => {
  */
 export const getDashboardMetrics = async ({ departmentId, make } = {}) => {
   const assetWhere = { isArchived: false };
-  if (departmentId) assetWhere.departmentId = Number(departmentId);
+  if (departmentId) assetWhere.departmentId = toId(departmentId);
   if (make) assetWhere.make = make;
 
   const feeWhere = {};
   if (departmentId) {
-    feeWhere.student = { departmentId: Number(departmentId) };
+    feeWhere.student = { departmentId: toId(departmentId) };
   }
 
   const allocWhere = {};
   if (departmentId) {
-    allocWhere.recipient = { departmentId: Number(departmentId) };
+    allocWhere.recipient = { departmentId: toId(departmentId) };
   }
   if (make) {
     allocWhere.asset = { make };
@@ -825,7 +826,7 @@ export const getDashboardMetrics = async ({ departmentId, make } = {}) => {
  */
 export const recordPhysicalVerification = async (id, data, actorId, ipAddress) => {
   const { auditStatus = 'PHYSICAL_OK', remarks } = data;
-  const parsedId = Number(id);
+  const parsedId = toId(id);
 
   const asset = await prisma.asset.findUnique({
     where: { id: parsedId },
@@ -1128,7 +1129,7 @@ export const getPhysicalAuditOverdueReport = async ({
  */
 export const logRecharge = async (assetId, data, actorId, ipAddress) => {
   const asset = await prisma.asset.findUnique({
-    where: { id: Number(assetId) },
+    where: { id: toId(assetId) },
   });
 
   if (!asset) {
@@ -1155,7 +1156,7 @@ export const logRecharge = async (assetId, data, actorId, ipAddress) => {
   const [rechargeRecord, updatedAsset] = await prisma.$transaction([
     prisma.rechargeHistory.create({
       data: {
-        assetId: Number(assetId),
+        assetId: toId(assetId),
         amount: rechargeAmount,
         validityDays,
         rechargeDate,
@@ -1165,14 +1166,14 @@ export const logRecharge = async (assetId, data, actorId, ipAddress) => {
         serviceProvider: data.serviceProvider || asset.serviceProvider || 'JIO',
         planDetails: data.planDetails || asset.planDetails || null,
         notes: data.notes || data.remarks || null,
-        createdById: actorId ? Number(actorId) : null,
+        createdById: toNullableId(actorId),
       },
       include: {
         createdBy: { select: { id: true, name: true, role: true } },
       },
     }),
     prisma.asset.update({
-      where: { id: Number(assetId) },
+      where: { id: toId(assetId) },
       data: {
         lastRechargeDate: rechargeDate,
         rechargeExpiryDate: newExpiryDate,
@@ -1208,7 +1209,7 @@ export const logRecharge = async (assetId, data, actorId, ipAddress) => {
  */
 export const getRechargeHistory = async (assetId) => {
   const history = await prisma.rechargeHistory.findMany({
-    where: { assetId: Number(assetId) },
+    where: { assetId: toId(assetId) },
     orderBy: { rechargeDate: 'desc' },
     include: {
       createdBy: { select: { id: true, name: true, role: true } },

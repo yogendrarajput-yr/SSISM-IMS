@@ -1,6 +1,7 @@
 import { prisma } from '../config/db.js';
 import { AppError } from '../utils/appError.js';
 import { logAudit } from './audit.service.js';
+import { toId, toIdArray } from '../utils/idHelper.js';
 import ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
 import bcrypt from 'bcryptjs';
@@ -236,9 +237,9 @@ export const exportAssetsToExcel = async (filters = {}) => {
   const where = {};
   if (filters.status) where.status = filters.status;
   if (filters.category) where.category = filters.category;
-  if (filters.departmentId) where.departmentId = Number(filters.departmentId);
+  if (filters.departmentId) where.departmentId = toId(filters.departmentId);
   if (filters.ids) {
-    const idArray = String(filters.ids).split(',').map((id) => Number(id.trim())).filter((n) => !isNaN(n) && n > 0);
+    const idArray = toIdArray(filters.ids);
     if (idArray.length > 0) where.id = { in: idArray };
   }
 
@@ -319,7 +320,7 @@ export const exportAllocationsToExcel = async (filters = {}) => {
   const where = {};
   if (filters.status) where.status = filters.status;
   if (filters.ids) {
-    const idArray = String(filters.ids).split(',').map((id) => Number(id.trim())).filter((n) => !isNaN(n) && n > 0);
+    const idArray = toIdArray(filters.ids);
     if (idArray.length > 0) where.id = { in: idArray };
   }
 
@@ -394,7 +395,7 @@ export const exportAllocationsToExcel = async (filters = {}) => {
 export const generateReceiptPDF = async (allocationId, res) => {
 
   const allocation = await prisma.allocation.findUnique({
-    where: { id: Number(allocationId) },
+    where: { id: toId(allocationId) },
     include: {
       asset: { include: { department: true } },
       recipient: { include: { department: true } },

@@ -48,9 +48,9 @@ export const createAssetSchema = z.object({
   condition: z.enum(['BRAND_NEW', 'GOOD', 'SCRATCHES', 'DAMAGED']).default('BRAND_NEW'),
   status: z.enum(['AVAILABLE', 'ISSUED', 'UNDER_MAINTENANCE', 'RETIRED']).default('AVAILABLE'),
   acquisitionSource: z.enum(['PURCHASED', 'DONATED']).default('PURCHASED'),
-  donorId: z.number().int().positive().optional().nullable(),
+  donorId: z.union([z.string(), z.number()]).optional().nullable(),
   remarks: z.string().optional().nullable(),
-  departmentId: z.number().int().positive().optional().nullable(),
+  departmentId: z.union([z.string(), z.number()]).optional().nullable(),
   attributes: z.record(z.any()).optional().nullable(),
 
   // AirFiber / Routers Specific
@@ -77,8 +77,8 @@ export const updateAssetSchema = createAssetSchema.partial();
  * Requires valid assetId, recipientId, condition, and optional fee override flag.
  */
 export const createAllocationSchema = z.object({
-  assetId: z.number().int().positive('Valid Asset ID is required'),
-  recipientId: z.number().int().positive('Valid Recipient ID is required'),
+  assetId: z.union([z.string(), z.number()]).refine((val) => Boolean(val), 'Valid Asset ID is required'),
+  recipientId: z.union([z.string(), z.number()]).refine((val) => Boolean(val), 'Valid Recipient ID is required'),
   dueDate: z.string().datetime().optional().nullable().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable()),
   expectedReturnDate: z.string().datetime().optional().nullable().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable()),
   accessories: z.union([z.array(z.string()), z.record(z.any()), z.null()]).optional(),
@@ -104,7 +104,7 @@ export const returnAllocationSchema = z.object({
  * Hardware maintenance and upgrade logging schema.
  */
 export const createMaintenanceSchema = z.object({
-  assetId: z.number().int().positive('Valid Asset ID is required'),
+  assetId: z.union([z.string(), z.number()]).refine((val) => Boolean(val), 'Valid Asset ID is required'),
   type: z.enum(['RAM_UPGRADE', 'SSD_UPGRADE', 'BATTERY_REPLACEMENT', 'SCREEN_REPAIR', 'KEYBOARD_REPAIR', 'GENERAL_SERVICE', 'OS_INSTALLATION', 'OTHER']),
   cost: z.number().nonnegative().optional().nullable(),
   vendorOrTechnician: z.string().optional().nullable(),

@@ -1,6 +1,7 @@
 import { prisma } from '../config/db.js';
 import { AppError } from '../utils/appError.js';
 import { logAudit } from './audit.service.js';
+import { toId, toNullableId } from '../utils/idHelper.js';
 import {
   SEND_LAPTOP_ISSUED_EMAIL,
   SEND_LAPTOP_RETURNED_EMAIL,
@@ -66,7 +67,7 @@ export const getAllocationsList = async ({
   }
 
   if (departmentId) {
-    where.recipient = { departmentId: Number(departmentId) };
+    where.recipient = { departmentId: toId(departmentId) };
   }
 
   if (startDate || endDate) {
@@ -215,8 +216,8 @@ export const createAllocation = async ({
   issuedById,
   ipAddress,
 }) => {
-  const parsedAssetId = Number(assetId);
-  const parsedRecipientId = Number(recipientId);
+  const parsedAssetId = toId(assetId);
+  const parsedRecipientId = toId(recipientId);
 
   const createdAllocation = await prisma.$transaction(async (tx) => {
     // 1. Validate Recipient exists
@@ -365,7 +366,7 @@ export const returnAllocation = async ({
   returnedById,
   ipAddress,
 }) => {
-  const parsedId = Number(allocationId);
+  const parsedId = toId(allocationId);
   const parsedFineAmount = Number(fineAmount) || 0;
   const isFinePaid = Boolean(finePaid);
 
@@ -484,7 +485,7 @@ export const returnAllocation = async ({
 export const getAllocationReceiptData = async (allocationId) => {
 
   const allocation = await prisma.allocation.findUnique({
-    where: { id: Number(allocationId) },
+    where: { id: toId(allocationId) },
     include: {
       asset: {
         include: { department: true },
@@ -509,7 +510,7 @@ export const getAllocationReceiptData = async (allocationId) => {
  * If allocation is ACTIVE, resets the asset status back to AVAILABLE.
  */
 export const deleteAllocation = async (allocationId, actorId, ipAddress) => {
-  const parsedId = Number(allocationId);
+  const parsedId = toId(allocationId);
 
   const allocation = await prisma.allocation.findUnique({
     where: { id: parsedId },

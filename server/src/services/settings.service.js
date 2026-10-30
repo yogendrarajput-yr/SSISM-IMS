@@ -1,6 +1,7 @@
 import { prisma } from '../config/db.js';
 import { AppError } from '../utils/appError.js';
 import { logAudit } from './audit.service.js';
+import { toId, toNullableId } from '../utils/idHelper.js';
 
 /**
  * Retrieve master settings overview including departments, categories, and roles.
@@ -110,11 +111,11 @@ export const createDepartment = async ({ name, code }, actorId, ipAddress) => {
  * Update department name or code.
  */
 export const updateDepartment = async (id, { name, code }, actorId, ipAddress) => {
-  const dept = await prisma.department.findUnique({ where: { id: Number(id) } });
+  const dept = await prisma.department.findUnique({ where: { id: toId(id) } });
   if (!dept) throw new AppError('Department not found.', 404);
 
   const updated = await prisma.department.update({
-    where: { id: Number(id) },
+    where: { id: toId(id) },
     data: {
       name: name ? name.trim() : dept.name,
       code: code ? code.trim().toUpperCase() : dept.code,
@@ -138,7 +139,7 @@ export const updateDepartment = async (id, { name, code }, actorId, ipAddress) =
  */
 export const deleteDepartment = async (id, actorId, ipAddress) => {
   const dept = await prisma.department.findUnique({
-    where: { id: Number(id) },
+    where: { id: toId(id) },
     include: { _count: { select: { users: true, assets: true } } },
   });
 
@@ -151,7 +152,7 @@ export const deleteDepartment = async (id, actorId, ipAddress) => {
     );
   }
 
-  await prisma.department.delete({ where: { id: Number(id) } });
+  await prisma.department.delete({ where: { id: toId(id) } });
 
   await logAudit({
     actorId,
@@ -205,11 +206,11 @@ export const createCategory = async ({ name, code, description }, actorId, ipAdd
  * Update dynamic category.
  */
 export const updateCategory = async (id, { name, code, description }, actorId, ipAddress) => {
-  const cat = await prisma.category.findUnique({ where: { id: Number(id) } });
+  const cat = await prisma.category.findUnique({ where: { id: toId(id) } });
   if (!cat) throw new AppError('Category not found.', 404);
 
   const updated = await prisma.category.update({
-    where: { id: Number(id) },
+    where: { id: toId(id) },
     data: {
       name: name ? name.trim() : cat.name,
       code: code ? code.trim().toUpperCase() : cat.code,
@@ -233,10 +234,10 @@ export const updateCategory = async (id, { name, code, description }, actorId, i
  * Delete dynamic category.
  */
 export const deleteCategory = async (id, actorId, ipAddress) => {
-  const cat = await prisma.category.findUnique({ where: { id: Number(id) } });
+  const cat = await prisma.category.findUnique({ where: { id: toId(id) } });
   if (!cat) throw new AppError('Category not found.', 404);
 
-  await prisma.category.delete({ where: { id: Number(id) } });
+  await prisma.category.delete({ where: { id: toId(id) } });
 
   await logAudit({
     actorId,
@@ -256,16 +257,16 @@ export const deleteCategory = async (id, actorId, ipAddress) => {
  */
 export const archiveDepartment = async (id, actorId, ipAddress) => {
   const dept = await prisma.department.findUnique({
-    where: { id: Number(id) },
+    where: { id: toId(id) },
   });
 
   if (!dept) throw new AppError('Department not found.', 404);
 
   const activeUsers = await prisma.user.count({
-    where: { departmentId: Number(id), isArchived: false },
+    where: { departmentId: toId(id), isArchived: false },
   });
   const activeAssets = await prisma.asset.count({
-    where: { departmentId: Number(id), isArchived: false },
+    where: { departmentId: toId(id), isArchived: false },
   });
 
   if (activeUsers > 0 || activeAssets > 0) {
@@ -276,7 +277,7 @@ export const archiveDepartment = async (id, actorId, ipAddress) => {
   }
 
   const archived = await prisma.department.update({
-    where: { id: Number(id) },
+    where: { id: toId(id) },
     data: {
       isArchived: true,
       archivedAt: new Date(),
@@ -299,11 +300,11 @@ export const archiveDepartment = async (id, actorId, ipAddress) => {
  * Restore a soft-deleted department back to active status.
  */
 export const restoreDepartment = async (id, actorId, ipAddress) => {
-  const dept = await prisma.department.findUnique({ where: { id: Number(id) } });
+  const dept = await prisma.department.findUnique({ where: { id: toId(id) } });
   if (!dept) throw new AppError('Department not found.', 404);
 
   const restored = await prisma.department.update({
-    where: { id: Number(id) },
+    where: { id: toId(id) },
     data: {
       isArchived: false,
       archivedAt: null,

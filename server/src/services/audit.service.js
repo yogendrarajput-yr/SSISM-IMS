@@ -1,4 +1,5 @@
 import { prisma } from '../config/db.js';
+import { toId, toNullableId } from '../utils/idHelper.js';
 
 /**
  * Record an immutable audit log entry for security and accountability.
@@ -25,7 +26,7 @@ export const logAudit = async ({
   try {
     return await tx.auditLog.create({
       data: {
-        actorId: actorId ? Number(actorId) : null,
+        actorId: toNullableId(actorId),
         action,
         entityType,
         entityId: String(entityId),
@@ -57,7 +58,7 @@ export const getAuditLogsList = async ({ page = 1, limit = 25, action, entityTyp
 
   if (action) where.action = action;
   if (entityType) where.entityType = entityType;
-  if (actorId) where.actorId = Number(actorId);
+  if (actorId) where.actorId = toId(actorId);
 
   const [logs, total] = await Promise.all([
     prisma.auditLog.findMany({
@@ -95,7 +96,7 @@ export const getAuditLogsList = async ({ page = 1, limit = 25, action, entityTyp
  * Delete a single audit log entry from database.
  */
 export const deleteAuditLog = async (id) => {
-  const parsedId = Number(id);
+  const parsedId = toId(id);
   const existing = await prisma.auditLog.findUnique({ where: { id: parsedId } });
   if (!existing) {
     throw new AppError('Audit log entry not found.', 404);

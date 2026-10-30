@@ -1,6 +1,7 @@
 import { prisma } from '../config/db.js';
 import { AppError } from '../utils/appError.js';
 import { logAudit } from './audit.service.js';
+import { toId, toNullableId } from '../utils/idHelper.js';
 
 /**
  * Retrieve paginated donor list with search, asset count, and acquisition analytics.
@@ -68,7 +69,7 @@ export const getDonorsList = async ({ page = 1, limit = 15, search = '' }) => {
  */
 export const getDonorById = async (donorId) => {
   const donor = await prisma.donor.findUnique({
-    where: { id: Number(donorId) },
+    where: { id: toId(donorId) },
     include: {
       assets: {
         orderBy: { id: 'desc' },
@@ -139,13 +140,13 @@ export const createDonor = async (data, actorId, ipAddress) => {
  * @param {string} ipAddress
  */
 export const updateDonor = async (donorId, data, actorId, ipAddress) => {
-  const existing = await prisma.donor.findUnique({ where: { id: Number(donorId) } });
+  const existing = await prisma.donor.findUnique({ where: { id: toId(donorId) } });
   if (!existing) {
     throw new AppError('Donor record not found.', 404);
   }
 
   const updated = await prisma.donor.update({
-    where: { id: Number(donorId) },
+    where: { id: toId(donorId) },
     data: {
       name: data.name !== undefined ? data.name : existing.name,
       organization: data.organization !== undefined ? data.organization : existing.organization,
@@ -178,7 +179,7 @@ export const updateDonor = async (donorId, data, actorId, ipAddress) => {
  */
 export const deleteDonor = async (donorId, actorId, ipAddress) => {
   const donor = await prisma.donor.findUnique({
-    where: { id: Number(donorId) },
+    where: { id: toId(donorId) },
     include: { _count: { select: { assets: true } } },
   });
 
@@ -193,7 +194,7 @@ export const deleteDonor = async (donorId, actorId, ipAddress) => {
     );
   }
 
-  await prisma.donor.delete({ where: { id: Number(donorId) } });
+  await prisma.donor.delete({ where: { id: toId(donorId) } });
 
   await logAudit({
     actorId,

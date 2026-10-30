@@ -1,6 +1,7 @@
 import { prisma } from '../config/db.js';
 import { AppError } from '../utils/appError.js';
 import { logAudit } from './audit.service.js';
+import { toId } from '../utils/idHelper.js';
 
 /**
  * Retrieve paginated student software license fee records with summary analytics.
@@ -28,7 +29,7 @@ export const getFeeRecordsList = async ({
   if (status) where.status = status;
   if (academicYear) where.academicYear = academicYear;
   if (departmentId) {
-    where.student = { departmentId: Number(departmentId) };
+    where.student = { departmentId: toId(departmentId) };
   }
   if (search) {
     where.student = {
@@ -63,7 +64,7 @@ export const getFeeRecordsList = async ({
     prisma.licenseFeeRecord.count({ where }),
     prisma.licenseFeeRecord.groupBy({
       by: ['status'],
-      where: departmentId ? { student: { departmentId: Number(departmentId) } } : {},
+      where: departmentId ? { student: { departmentId: toId(departmentId) } } : {},
       _count: { status: true },
       _sum: { amount: true },
     }),
@@ -91,7 +92,7 @@ export const getFeeRecordsList = async ({
  */
 export const updateFeeRecord = async (id, data, actorId, ipAddress) => {
   const existing = await prisma.licenseFeeRecord.findUnique({
-    where: { id: Number(id) },
+    where: { id: toId(id) },
     include: { student: true },
   });
 
@@ -100,7 +101,7 @@ export const updateFeeRecord = async (id, data, actorId, ipAddress) => {
   }
 
   const updated = await prisma.licenseFeeRecord.update({
-    where: { id: Number(id) },
+    where: { id: toId(id) },
     data: {
       status: data.status,
       amount: data.amount !== undefined ? data.amount : undefined,
@@ -139,7 +140,7 @@ export const updateFeeRecord = async (id, data, actorId, ipAddress) => {
  */
 export const checkStudentFeeStatus = async (studentId) => {
   const feeRecord = await prisma.licenseFeeRecord.findFirst({
-    where: { studentId: Number(studentId) },
+    where: { studentId: toId(studentId) },
     orderBy: { academicYear: 'desc' },
   });
 
@@ -154,7 +155,7 @@ export const checkStudentFeeStatus = async (studentId) => {
  * Delete a software license fee record from the database.
  */
 export const deleteFeeRecord = async (id, actorId, ipAddress) => {
-  const parsedId = Number(id);
+  const parsedId = toId(id);
   const existing = await prisma.licenseFeeRecord.findUnique({
     where: { id: parsedId },
     include: { student: true },

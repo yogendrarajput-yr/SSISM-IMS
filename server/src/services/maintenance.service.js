@@ -1,6 +1,7 @@
 import { prisma } from '../config/db.js';
 import { AppError } from '../utils/appError.js';
 import { logAudit } from './audit.service.js';
+import { toId, toNullableId } from '../utils/idHelper.js';
 
 /**
  * Retrieve paginated maintenance and repair logs with aggregate cost statistics.
@@ -22,7 +23,7 @@ export const getMaintenanceLogsList = async ({
   const skip = (Number(page) - 1) * Number(limit);
   const where = {};
 
-  if (assetId) where.assetId = Number(assetId);
+  if (assetId) where.assetId = toId(assetId);
   if (type) where.type = type;
   if (search) {
     where.OR = [
@@ -84,7 +85,7 @@ export const getMaintenanceLogsList = async ({
 export const createMaintenanceLogRecord = async (data, actorId, ipAddress) => {
 
   const asset = await prisma.asset.findUnique({
-    where: { id: Number(data.assetId) },
+    where: { id: toId(data.assetId) },
   });
 
   if (!asset) {
@@ -94,8 +95,8 @@ export const createMaintenanceLogRecord = async (data, actorId, ipAddress) => {
   const log = await prisma.$transaction(async (tx) => {
     const createdLog = await tx.maintenanceLog.create({
       data: {
-        assetId: Number(data.assetId),
-        performedById: actorId,
+        assetId: toId(data.assetId),
+        performedById: toNullableId(actorId),
         type: data.type,
         cost: data.cost !== undefined ? data.cost : null,
         vendorOrTechnician: data.vendorOrTechnician || null,
@@ -145,7 +146,7 @@ export const createMaintenanceLogRecord = async (data, actorId, ipAddress) => {
  * Delete a maintenance log record from the database.
  */
 export const deleteMaintenanceLog = async (id, actorId, ipAddress) => {
-  const parsedId = Number(id);
+  const parsedId = toId(id);
   const log = await prisma.maintenanceLog.findUnique({
     where: { id: parsedId },
     include: { asset: true },

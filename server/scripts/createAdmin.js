@@ -1,14 +1,20 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 /**
- * Script to ensure default admin credentials in Aiven Cloud MySQL database.
+ * Script to ensure default admin credentials in MongoDB database.
  */
-const CLOUD_DB_URL = process.env.DATABASE_URL;
+const CLOUD_DB_URL = process.env.MONGO_URI || process.env.DATABASE_URL;
 
 if (!CLOUD_DB_URL) {
-  console.error('❌ Error: DATABASE_URL environment variable is required.');
-  console.error('Usage: DATABASE_URL="mysql://<user>:<password>@<host>:<port>/<db>?ssl-mode=REQUIRED" node scripts/createAdmin.js');
+  console.error('❌ Error: MONGO_URI or DATABASE_URL environment variable is required.');
   process.exit(1);
 }
 
@@ -21,12 +27,12 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
-  console.log('Connecting to Cloud MySQL database...');
+  console.log('Connecting to MongoDB database...');
   console.log(`Endpoint: ${CLOUD_DB_URL.replace(/:[^:@]+@/, ':****@')}`);
 
   try {
     await prisma.$connect();
-    console.log(' Connected to Aiven Cloud MySQL database.');
+    console.log(' Connected to MongoDB database.');
 
     // 1. Check existing ADMIN records
     const existingAdmins = await prisma.user.findMany({

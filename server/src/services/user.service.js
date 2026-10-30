@@ -1,6 +1,7 @@
 import { prisma } from '../config/db.js';
 import { AppError } from '../utils/appError.js';
 import { logAudit } from './audit.service.js';
+import { toId, toNullableId, toIdArray } from '../utils/idHelper.js';
 import ExcelJS from 'exceljs';
 import bcrypt from 'bcryptjs';
 
@@ -42,7 +43,7 @@ export const getStudentsList = async ({
   if (branch) where.branch = branch;
   if (batchYear) where.batchYear = batchYear;
   if (track) where.track = track;
-  if (departmentId) where.departmentId = Number(departmentId);
+  if (departmentId) where.departmentId = toId(departmentId);
 
   if (custodyStatus === 'ISSUED' || custodyStatus === 'HOLDING') {
     where.receivedAllocations = { some: { status: 'ACTIVE' } };
@@ -206,7 +207,7 @@ export const createStudent = async (data, actorId, ipAddress) => {
   }
 
   // Find department if not explicitly given
-  let resolvedDeptId = departmentId ? Number(departmentId) : null;
+  let resolvedDeptId = toNullableId(departmentId);
   if (!resolvedDeptId && branch) {
     const deptMatch = await prisma.department.findFirst({
       where: { OR: [{ code: branch.trim() }, { name: { contains: branch.trim() } }] },
@@ -500,7 +501,7 @@ export const getStaffList = async ({
     ];
   }
 
-  if (departmentId) where.departmentId = Number(departmentId);
+  if (departmentId) where.departmentId = toId(departmentId);
   if (designation) where.designation = { contains: designation };
 
   if (custodyStatus === 'ISSUED' || custodyStatus === 'HOLDING') {
@@ -617,7 +618,7 @@ export const createStaff = async (data, actorId, ipAddress) => {
   const staff = await prisma.user.create({
     data: {
       name: name.trim(),
-      departmentId: departmentId ? Number(departmentId) : null,
+      departmentId: toNullableId(departmentId),
       designation: designation ? designation.trim() : 'Staff Member',
       aadhaarNumber: aadhaarNumber && aadhaarNumber.trim() ? aadhaarNumber.trim() : null,
       phone: phone ? phone.trim() : null,
@@ -823,7 +824,7 @@ export const generateStaffSampleTemplate = async () => {
  */
 export const getUserDetails = async (id) => {
   const user = await prisma.user.findUnique({
-    where: { id: Number(id) },
+    where: { id: toId(id) },
     include: {
       department: true,
       receivedAllocations: {
@@ -854,7 +855,7 @@ export const getUserDetails = async (id) => {
  * Update student or staff member profile details.
  */
 export const updateUser = async (id, data, actorId, ipAddress) => {
-  const user = await prisma.user.findUnique({ where: { id: Number(id) } });
+  const user = await prisma.user.findUnique({ where: { id: toId(id) } });
   if (!user) throw new AppError('User not found.', 404);
 
   if (data.email !== undefined && !data.email.trim()) {
@@ -897,11 +898,11 @@ export const updateUser = async (id, data, actorId, ipAddress) => {
   if (rollOrEmp !== undefined) updateData.rollNumberOrEmpId = rollOrEmp.trim();
   if (data.address !== undefined) updateData.address = data.address ? data.address.trim() : null;
   if (data.designation !== undefined) updateData.designation = data.designation ? data.designation.trim() : null;
-  if (data.departmentId !== undefined) updateData.departmentId = data.departmentId ? Number(data.departmentId) : null;
+  if (data.departmentId !== undefined) updateData.departmentId = toNullableId(data.departmentId);
   if (data.role !== undefined) updateData.role = data.role;
 
   const updated = await prisma.user.update({
-    where: { id: Number(id) },
+    where: { id: toId(id) },
     data: updateData,
     include: { department: true },
   });
@@ -925,7 +926,7 @@ export const updateUser = async (id, data, actorId, ipAddress) => {
  */
 export const archiveUser = async (id, actorId, ipAddress) => {
   const user = await prisma.user.findUnique({
-    where: { id: Number(id) },
+    where: { id: toId(id) },
     include: {
       receivedAllocations: {
         where: { status: 'ACTIVE' },
@@ -946,7 +947,7 @@ export const archiveUser = async (id, actorId, ipAddress) => {
   }
 
   const archived = await prisma.user.update({
-    where: { id: Number(id) },
+    where: { id: toId(id) },
     data: {
       isArchived: true,
       archivedAt: new Date(),
@@ -970,11 +971,11 @@ export const archiveUser = async (id, actorId, ipAddress) => {
  * Restore a soft-deleted user back to active status.
  */
 export const restoreUser = async (id, actorId, ipAddress) => {
-  const user = await prisma.user.findUnique({ where: { id: Number(id) } });
+  const user = await prisma.user.findUnique({ where: { id: toId(id) } });
   if (!user) throw new AppError('User not found.', 404);
 
   const restored = await prisma.user.update({
-    where: { id: Number(id) },
+    where: { id: toId(id) },
     data: {
       isArchived: false,
       archivedAt: null,
@@ -1002,12 +1003,12 @@ export const bulkArchiveUsers = async (ids, actorId, ipAddress) => {
     throw new AppError('No user IDs specified for bulk archiving.', 400);
   }
 
-  const numericIds = ids.map((id) => Number(id)).filter((n) => !isNaN(n) && n > 0);
+  const targetIds = toIdArray(ids);
 
   // Check for active laptop allocations across any of the users
   const activeAllocations = await prisma.allocation.findMany({
     where: {
-      recipientId: { in: numericIds },
+      recipientId: { in: targetIds },
       status: 'ACTIVE',
     },
     include: {
@@ -1027,7 +1028,7 @@ export const bulkArchiveUsers = async (ids, actorId, ipAddress) => {
   }
 
   const result = await prisma.user.updateMany({
-    where: { id: { in: numericIds } },
+    where: { id: { in: targetIds } },
     data: {
       isArchived: true,
       archivedAt: new Date(),
@@ -1040,7 +1041,7 @@ export const bulkArchiveUsers = async (ids, actorId, ipAddress) => {
     action: 'BULK_USER_ARCHIVE',
     entityType: 'User',
     entityId: `BULK-ARCHIVE-${Date.now()}`,
-    details: { count: result.count, userIds: numericIds },
+    details: { count: result.count, userIds: targetIds },
     ipAddress,
   });
 
@@ -1057,7 +1058,7 @@ export const exportUsersToExcel = async (role = 'STUDENT', filters = {}) => {
     role: isStudent ? 'STUDENT' : { in: ['STAFF', 'FACULTY', 'HIGHER_MANAGEMENT', 'SUPER_ADMIN'] },
   };
 
-  if (filters.departmentId) where.departmentId = Number(filters.departmentId);
+  if (filters.departmentId) where.departmentId = toId(filters.departmentId);
   if (filters.branch) where.branch = filters.branch;
   if (filters.batchYear) where.batchYear = filters.batchYear;
 
@@ -1169,8 +1170,8 @@ export const exportUsersToExcel = async (role = 'STUDENT', filters = {}) => {
  * - In a transaction, cleans up relational constraints and purges the user.
  */
 export const deleteUser = async (id, actorId, ipAddress) => {
-  const userId = Number(id);
-  if (actorId === userId) {
+  const userId = toId(id);
+  if (toId(actorId) === userId) {
     throw new AppError('Security constraint: You cannot delete your own account.', 400);
   }
 

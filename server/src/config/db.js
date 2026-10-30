@@ -3,7 +3,7 @@ import { config } from './env.js';
 
 let prismaInstance;
 
-const dbUrl = process.env.DATABASE_URL || config.databaseUrl;
+const dbUrl = process.env.MONGO_URI || process.env.DATABASE_URL || config.databaseUrl;
 
 if (config.nodeEnv === 'production') {
   prismaInstance = new PrismaClient({

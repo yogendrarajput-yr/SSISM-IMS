@@ -5,7 +5,7 @@ import { prisma } from './config/db.js';
 /**
  * Server Bootstrap and Lifecycle Management
  * 
- * Verifies MySQL connection via Prisma before listening on configured port.
+ * Verifies MongoDB connection via Prisma before listening on configured port.
  * Registers SIGINT and SIGTERM handlers for graceful shutdown and DB disconnection.
  */
 const PORT = process.env.PORT || config.port || 5000;
@@ -14,7 +14,7 @@ const connectWithRetry = async (retries = 5, delay = 4000) => {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       await prisma.$connect();
-      console.log('✅ Connected to MySQL database via Prisma ORM.');
+      console.log('✅ Connected to MongoDB database via Prisma ORM.');
       return true;
     } catch (err) {
       console.error(`⚠️ Database connection attempt ${attempt}/${retries} failed: ${err.message}`);

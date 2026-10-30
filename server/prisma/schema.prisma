@@ -1,11 +1,11 @@
-// Prisma Schema for SSISM College Asset & Inventory Management System
+// Prisma Schema for SSISM College Asset & Inventory Management System (MongoDB)
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "mongodb"
   url      = env("DATABASE_URL")
 }
 
@@ -81,7 +81,7 @@ enum AuditVerificationStatus {
 
 /// Dynamic Master Asset Categories for Phase 2 scaling (e.g., Laptop, Router, CCTV, Smart TV)
 model Category {
-  id          Int      @id @default(autoincrement())
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   name        String   @unique
   code        String   @unique
   description String?
@@ -91,14 +91,14 @@ model Category {
 
 /// Corporate, NGO, and Alumni Donors contributing laptops and educational assets
 model Donor {
-  id           Int       @id @default(autoincrement())
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
   name         String    // Contact person / Representative
   organization String?   // Corporate / NGO / Alumni entity
   email        String?
   phone        String?
   address      String?
   donationDate DateTime? @default(now())
-  notes        String?   @db.Text
+  notes        String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -107,7 +107,7 @@ model Donor {
 
 /// College Academic & Administrative Departments (e.g., Computer Science, IT, MBA, Mechanical)
 model Department {
-  id         Int       @id @default(autoincrement())
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
   name       String    @unique
   code       String    @unique
   isArchived Boolean   @default(false)
@@ -123,13 +123,13 @@ model Department {
 
 /// Users of SSISM IMS spanning 5 RBAC tiers: SUPER_ADMIN, STAFF, HIGHER_MANAGEMENT, FACULTY, STUDENT
 model User {
-  id                 Int         @id @default(autoincrement())
+  id                 String      @id @default(auto()) @map("_id") @db.ObjectId
   email              String      @unique
   passwordHash       String
   name               String
   rollNumberOrEmpId  String      @unique
   role               Role        @default(STUDENT)
-  departmentId       Int?
+  departmentId       String?     @db.ObjectId
   department         Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   batchYear          String?     // e.g. "2023-2027" for students
   phone              String?
@@ -137,7 +137,7 @@ model User {
   branch             String?     // e.g. "ITEG", "MEG", "B.Tech CSE"
   track              String?     // e.g. "Full Stack", "Data Science"
   aadhaarNumber      String?     @unique
-  address            String?     @db.Text
+  address            String?
   designation        String?     // Staff/Faculty current role or designation
   isArchived         Boolean     @default(false)
   archivedAt         DateTime?
@@ -170,14 +170,12 @@ model User {
 
   @@index([role])
   @@index([departmentId])
-  @@index([rollNumberOrEmpId])
   @@index([isArchived])
 }
 
-
 /// Core Hardware Asset Catalog (Laptops & Phase 2 extensible equipment via native JSON attributes)
 model Asset {
-  id                Int               @id @default(autoincrement())
+  id                String            @id @default(auto()) @map("_id") @db.ObjectId
   assetTag          String            @unique // e.g., "LP/2025/001" or "CLG-LAP-001"
   serialNumber      String            @unique // e.g., "SN-DELL-83921"
   category          AssetCategory     @default(LAPTOP)
@@ -199,7 +197,7 @@ model Asset {
 
   // Acquisition Source & Donor Association
   acquisitionSource AcquisitionSource @default(PURCHASED)
-  donorId           Int?
+  donorId           String?           @db.ObjectId
   donor             Donor?            @relation(fields: [donorId], references: [id], onDelete: SetNull)
 
   // Procurement & Warranty
@@ -210,13 +208,13 @@ model Asset {
   // Current Lifecycle Status
   condition         AssetCondition    @default(BRAND_NEW)
   status            AssetStatus       @default(AVAILABLE)
-  remarks           String?           @db.Text
+  remarks           String?
 
   // Location / Assigned Department (Optional default base location)
-  departmentId      Int?
+  departmentId      String?           @db.ObjectId
   department        Department?       @relation(fields: [departmentId], references: [id], onDelete: SetNull)
 
-  // CRITICAL DESIGN FOR PHASE 2: Native MySQL JSON for Dynamic Attributes
+  // Native JSON for Dynamic Attributes
   attributes        Json?
 
   isArchived        Boolean           @default(false)
@@ -224,10 +222,10 @@ model Asset {
 
   // Physical Verification & Audit Tracking
   lastVerifiedAt      DateTime?
-  verifiedById        Int?
+  verifiedById        String?                  @db.ObjectId
   verifiedBy          User?                    @relation("AssetVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
   auditStatus         AuditVerificationStatus? @default(PHYSICAL_OK)
-  verificationRemarks String?                  @db.Text
+  verificationRemarks String?
 
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
@@ -248,7 +246,7 @@ model Asset {
   planDetails       String?           // e.g., "100 Mbps Unlimited Annual Plan"
   lastRechargeDate  DateTime?
   rechargeExpiryDate DateTime?
-  monthlyCost       Decimal?          @db.Decimal(10, 2)
+  monthlyCost       Float?
 
   // Printers / Monitors / Panels Specific
   ipAddress         String?           // Network IP address for Printers/Smart Devices
@@ -271,14 +269,14 @@ model Asset {
 
 /// Immutable Hardware Allocation Ledger tracking distribution to Students & Faculty
 model Allocation {
-  id              Int              @id @default(autoincrement())
-  assetId         Int
+  id              String           @id @default(auto()) @map("_id") @db.ObjectId
+  assetId         String           @db.ObjectId
   asset           Asset            @relation(fields: [assetId], references: [id], onDelete: Restrict)
   
-  recipientId     Int
+  recipientId     String           @db.ObjectId
   recipient       User             @relation("RecipientAllocations", fields: [recipientId], references: [id], onDelete: Restrict)
   
-  issuedById      Int
+  issuedById      String           @db.ObjectId
   issuedBy        User             @relation("IssuerAllocations", fields: [issuedById], references: [id], onDelete: Restrict)
   
   issuedAt        DateTime         @default(now())
@@ -286,20 +284,20 @@ model Allocation {
   expectedReturnDate DateTime?
   
   returnedAt      DateTime?
-  returnedById    Int?
+  returnedById    String?          @db.ObjectId
   returnedBy      User?            @relation("ReturnReceiverAllocations", fields: [returnedById], references: [id], onDelete: SetNull)
   
   issueCondition  AssetCondition   @default(GOOD)
   returnCondition AssetCondition?
   
-  fineAmount      Decimal?         @default(0) @db.Decimal(10, 2)
-  fineReason      String?          @db.Text
+  fineAmount      Float?           @default(0)
+  fineReason      String?
   finePaid        Boolean?         @default(false)
   finePaymentMode String?          // CASH, UPI, BANK_TRANSFER, PENDING
   
   status          AllocationStatus @default(ACTIVE)
   accessories     Json?            // Array of issued accessories, e.g. ["Charger / Adapter", "Laptop Bag", "External Mouse"]
-  notes           String?          @db.Text
+  notes           String?
   
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
@@ -312,17 +310,17 @@ model Allocation {
 
 /// Hardware Service, Component Replacement & Upgrade History
 model MaintenanceLog {
-  id                 Int             @id @default(autoincrement())
-  assetId            Int
+  id                 String          @id @default(auto()) @map("_id") @db.ObjectId
+  assetId            String          @db.ObjectId
   asset              Asset           @relation(fields: [assetId], references: [id], onDelete: Cascade)
   
-  performedById      Int?
+  performedById      String?         @db.ObjectId
   performedBy        User?           @relation(fields: [performedById], references: [id], onDelete: SetNull)
   
   type               MaintenanceType @default(GENERAL_SERVICE)
-  cost               Decimal?        @db.Decimal(10, 2)
+  cost               Float?
   vendorOrTechnician String?
-  description        String          @db.Text
+  description        String
   performedAt        DateTime        @default(now())
   
   createdAt          DateTime        @default(now())
@@ -334,17 +332,17 @@ model MaintenanceLog {
 
 /// Annual Student Software License Fee Records and Clearance Ledger
 model LicenseFeeRecord {
-  id           Int       @id @default(autoincrement())
-  studentId    Int
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  studentId    String    @db.ObjectId
   student      User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
   
   academicYear String    // e.g. "2025-2026"
   semester     String?   // e.g. "Semester 3"
-  amount       Decimal   @db.Decimal(10, 2)
+  amount       Float
   status       FeeStatus @default(UNPAID)
   paymentDate  DateTime?
   receiptNo    String?
-  notes        String?   @db.Text
+  notes        String?
 
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -356,8 +354,8 @@ model LicenseFeeRecord {
 
 /// System-Wide Security Audit Trail and Operational Activity Log
 model AuditLog {
-  id         Int      @id @default(autoincrement())
-  actorId    Int?
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  actorId    String?  @db.ObjectId
   actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
   
   action     String   // e.g. "ASSET_CREATED", "ALLOCATION_ISSUED", "ASSET_RETURNED"
@@ -376,15 +374,15 @@ model AuditLog {
 
 /// Physical Audit & Periodic Verification Ledger for Hardware Custody
 model PhysicalAuditLog {
-  id           Int                     @id @default(autoincrement())
-  assetId      Int
+  id           String                  @id @default(auto()) @map("_id") @db.ObjectId
+  assetId      String                  @db.ObjectId
   asset        Asset                   @relation(fields: [assetId], references: [id], onDelete: Cascade)
   
-  verifiedById Int?
+  verifiedById String?                 @db.ObjectId
   verifiedBy   User?                   @relation("PhysicalAuditsConducted", fields: [verifiedById], references: [id], onDelete: SetNull)
   
   auditStatus  AuditVerificationStatus @default(PHYSICAL_OK)
-  remarks      String?                 @db.Text
+  remarks      String?
   verifiedAt   DateTime                @default(now())
   createdAt    DateTime                @default(now())
 
@@ -396,29 +394,27 @@ model PhysicalAuditLog {
 
 /// Financial and operational audit trail for recurring AirFiber, SIM, and Router recharges
 model RechargeHistory {
-  id              Int       @id @default(autoincrement())
-  assetId         Int
-  asset           Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  assetId         String   @db.ObjectId
+  asset           Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
   
-  amount          Decimal   @db.Decimal(10, 2)
-  validityDays    Int       @default(30)
-  rechargeDate    DateTime  @default(now())
+  amount          Float
+  validityDays    Int      @default(30)
+  rechargeDate    DateTime @default(now())
   newExpiryDate   DateTime
   transactionId   String?   // Transaction ID or Receipt No
-  paymentMode     String?   @default("UPI") // UPI, NET_BANKING, CORPORATE_CARD, CASH
-  serviceProvider String?   // JIO, AIRTEL, OTHER
+  paymentMode     String?  @default("UPI") // UPI, NET_BANKING, CORPORATE_CARD, CASH
+  serviceProvider String?  // JIO, AIRTEL, OTHER
   planDetails     String?
-  notes           String?   @db.Text
+  notes           String?
   
-  createdById     Int?
-  createdBy       User?     @relation("RechargesLogged", fields: [createdById], references: [id], onDelete: SetNull)
+  createdById     String?  @db.ObjectId
+  createdBy       User?    @relation("RechargesLogged", fields: [createdById], references: [id], onDelete: SetNull)
 
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([assetId])
   @@index([rechargeDate])
   @@index([newExpiryDate])
 }
-
-

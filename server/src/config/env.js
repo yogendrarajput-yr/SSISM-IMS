@@ -11,7 +11,8 @@ export const config = {
   port: parseInt(process.env.PORT || '5000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
   clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
-  databaseUrl: process.env.DATABASE_URL,
+  databaseUrl: process.env.MONGO_URI || process.env.DATABASE_URL,
+  mongoUri: process.env.MONGO_URI || process.env.DATABASE_URL,
   jwt: {
     accessSecret: process.env.JWT_ACCESS_SECRET || 'ssism_super_secret_access_jwt_key_2026_@production',
     refreshSecret: process.env.JWT_REFRESH_SECRET || 'ssism_super_secret_refresh_jwt_key_2026_@production',
